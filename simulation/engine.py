@@ -27,6 +27,8 @@ class Metrics:
     migrations: int
     social_interactions: int
     conflicts: int
+    faction_count: int
+    average_faction_cohesion: float
 
 
 class Simulation:
@@ -105,6 +107,7 @@ class Simulation:
         self._social_phase()
         self._dispute_phase()
         self._faction_phase()
+        self._faction_dynamics_phase()
         self._migration_phase()
 
         self._emit(
@@ -129,6 +132,8 @@ class Simulation:
         living_count = len(living)
         trust_values = [agent.trust for agent in living]
 
+        faction_cohesions = [faction.cohesion for faction in self.world.factions.values()]
+
         return Metrics(
             day=self.world.day,
             population=living_count,
@@ -147,6 +152,8 @@ class Simulation:
             migrations=self._daily_migrations,
             social_interactions=self._daily_social_interactions,
             conflicts=self._daily_conflicts,
+            faction_count=len(self.world.factions),
+            average_faction_cohesion=(sum(faction_cohesions) / len(faction_cohesions) if faction_cohesions else 0.0),
         )
 
     def _is_working_age(self, agent: Agent) -> bool:
@@ -379,6 +386,53 @@ class Simulation:
 
         for faction in self.world.factions.values():
             self._update_faction_cohesion(faction)
+
+    def _faction_dynamics_phase(self) -> None:
+        """Maintain faction membership and deterministically replace dead leaders."""
+        for faction_id in sorted(list(self.world.factions)):
+            faction = self.world.factions[faction_id]
+            living_members = sorted(
+                member_id
+                for member_id in faction.members
+                if self.world.agents[member_id].alive
+            )
+
+            if living_members != faction.members:
+                for member_id in faction.members:
+                    if member_id not in living_members:
+                        self.world.agents[member_id].faction_id = None
+                faction.members = living_members
+
+            if not faction.members:
+                del self.world.factions[faction_id]
+                continue
+
+            if faction.leader_id not in faction.members:
+                previous_leader = faction.leader_id
+                faction.leader_id = self._select_faction_leader(faction)
+                self._emit(
+                    EventType.FACTION_LEADER_CHANGED,
+                    f"Faction {faction.id} selected agent {faction.leader_id} as new leader after agent {previous_leader} left",
+                    agent_id=faction.leader_id,
+                )
+
+            self._update_faction_cohesion(faction)
+
+    def _select_faction_leader(self, faction: Faction) -> int:
+        member_set = set(faction.members)
+        return max(
+            faction.members,
+            key=lambda member_id: (
+                sum(
+                    relationship.trust
+                    for relationship in self.world.relationships.values()
+                    if member_id in (relationship.agent_a, relationship.agent_b)
+                    and relationship.agent_a in member_set
+                    and relationship.agent_b in member_set
+                ),
+                -member_id,
+            ),
+        )
 
     def _update_faction_cohesion(self, faction: Faction) -> None:
         if len(faction.members) < 2:
