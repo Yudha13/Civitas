@@ -1,5 +1,5 @@
 """FastAPI application for the CIVITAS simulation."""
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 
 from simulation.engine import Simulation
@@ -82,6 +82,37 @@ def state() -> dict:
 @app.get("/simulation/metrics")
 def metrics() -> dict:
     return simulation.metrics().__dict__
+
+
+@app.websocket("/simulation/ws")
+async def simulation_ws(websocket: WebSocket) -> None:
+    await websocket.accept()
+    try:
+        while True:
+            command = await websocket.receive_json()
+            action = command.get("action", "state")
+
+            if action == "tick":
+                simulation.tick()
+            elif action == "run":
+                days = command.get("days", 1)
+                if not isinstance(days, int) or days < 0:
+                    await websocket.send_json({"error": "days must be a non-negative integer"})
+                    continue
+                simulation.run(days)
+            elif action == "state":
+                pass
+            else:
+                await websocket.send_json({"error": f"unknown action: {action}"})
+                continue
+
+            await websocket.send_json({
+                "action": action,
+                "state": _world_state(),
+                "metrics": simulation.metrics().__dict__,
+            })
+    except WebSocketDisconnect:
+        return
 
 
 @app.get("/simulation/events")
