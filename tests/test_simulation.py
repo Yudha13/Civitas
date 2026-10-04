@@ -45,6 +45,7 @@ def test_metrics_track_population_and_resources():
     assert initial.living_population == 100
     assert current.day == 1
     assert current.living_population == 100
+    assert current.population == current.living_population
     assert current.total_food > initial.total_food
     assert current.total_wood > initial.total_wood
     assert current.total_stone > initial.total_stone
@@ -53,6 +54,7 @@ def test_metrics_track_population_and_resources():
     assert current.trade_volume >= 0
     assert current.births >= 0
     assert current.deaths >= 0
+    assert current.migrations >= 0
     assert all(agent.wealth >= 0 for agent in simulation.world.agents.values())
 
 
@@ -74,6 +76,17 @@ def test_invalid_population_and_run_values_are_rejected():
 def test_world_validation_catches_invalid_agent_state():
     simulation = Simulation(seed=42, population=1)
     simulation.world.agents[1].health = 101
+
+    try:
+        simulation.world.validate()
+        assert False
+    except ValueError:
+        pass
+
+
+def test_world_validation_rejects_negative_wealth():
+    simulation = Simulation(seed=42, population=1)
+    simulation.world.agents[1].wealth = -0.1
 
     try:
         simulation.world.validate()
@@ -129,17 +142,6 @@ def test_trade_moves_food_between_villages_when_a_deficit_exists():
     assert simulation.metrics().trade_volume == sum(event.amount for event in trade_events)
 
 
-def test_world_validation_rejects_negative_wealth():
-    simulation = Simulation(seed=42, population=1)
-    simulation.world.agents[1].wealth = -0.1
-
-    try:
-        simulation.world.validate()
-        assert False
-    except ValueError:
-        pass
-
-
 def test_trade_can_emerge_without_manually_forcing_village_food():
     simulation = Simulation(seed=7, population=90)
     simulation.run(365)
@@ -181,3 +183,44 @@ def test_births_preserve_world_validity():
     simulation = Simulation(seed=321, population=100)
     simulation.run(365)
     simulation.world.validate()
+
+
+def test_children_do_not_produce_or_earn_before_working_age():
+    simulation = Simulation(seed=1, population=1)
+    child = simulation.world.agents[1]
+    child.age = 5.0
+    child.occupation = Occupation.FARMER
+    initial_food = simulation.world.villages[1].resources.food
+    initial_wealth = child.wealth
+
+    simulation.tick()
+
+    assert simulation.world.villages[1].resources.food == initial_food - simulation.FOOD_PER_DAY
+    assert child.wealth == initial_wealth
+
+
+def test_migration_moves_agents_toward_food_rich_villages():
+    simulation = Simulation(seed=17, population=3)
+    source = simulation.world.villages[1]
+    destination = simulation.world.villages[2]
+    source.resources.food = 0.0
+    destination.resources.food = 1000.0
+    simulation.MIGRATION_PROBABILITY = 1.0
+
+    simulation.tick()
+
+    moved = [event for event in simulation.world.events if event.type == EventType.MIGRATION]
+    assert moved
+    assert any(agent.village_id == 2 for agent in simulation.world.agents.values())
+    simulation.world.validate()
+
+
+def test_migration_is_seeded_and_reproducible():
+    first = Simulation(seed=77, population=30)
+    second = Simulation(seed=77, population=30)
+
+    first.run(60)
+    second.run(60)
+
+    assert first.world.events == second.world.events
+    assert first.metrics_history == second.metrics_history
