@@ -224,6 +224,31 @@ def test_social_interactions_create_relationships():
     assert any(event.type == EventType.SOCIAL for event in simulation.world.events)
 
 
+def test_inequality_reduces_social_trust_deterministically():
+    simulation = Simulation(seed=42, population=6)
+    simulation.SOCIAL_INTERACTION_PROBABILITY = 1.0
+    simulation.SOCIAL_TRUST_STEP = 0.0
+    simulation.INEQUALITY_TRUST_PENALTY = 1.0
+
+    village = simulation.world.villages[1]
+    ids = sorted(village.agents)
+    wealth = [1.0, 1.0, 1.0, 1.0, 1.0, 10.0]
+    for agent_id, value in zip(ids, wealth):
+        simulation.world.agents[agent_id].wealth = value
+
+    simulation.tick()
+
+    inequality = simulation.metrics().wealth_gini
+    expected_trust = max(0.0, 50.0 - inequality)
+    relationships = [
+        relationship
+        for relationship in simulation.world.relationships.values()
+        if relationship.agent_a in ids and relationship.agent_b in ids
+    ]
+    assert relationships
+    assert all(abs(relationship.trust - expected_trust) < 1e-12 for relationship in relationships)
+
+
 def test_social_system_is_seeded_and_reproducible():
     first = Simulation(seed=88, population=30)
     second = Simulation(seed=88, population=30)
