@@ -172,3 +172,20 @@ Faction state is maintained after formation each day.
 - faction count and average cohesion are exposed in daily metrics
 
 Faction dynamics do not yet include faction mergers, splits, formal membership voting, politics, or inter-faction warfare.
+
+
+## Web API Boundary
+
+The initial FastAPI layer exposes simulation lifecycle and observation endpoints without moving simulation rules into the API layer.
+
+Current endpoints:
+
+- `GET /health`
+- `POST /simulation/start`
+- `POST /simulation/tick`
+- `POST /simulation/run`
+- `GET /simulation/state`
+- `GET /simulation/metrics`
+- `GET /simulation/events`
+
+The API is an adapter around the deterministic simulation engine. WebSocket streaming remains the next API capability.
