@@ -40,3 +40,32 @@ def test_simulation_ownership_is_enforced():
         record = repo.create_simulation(owner.id, Simulation(seed=1, population=5), "Private")
         assert repo.get_simulation(owner.id, record.id) is not None
         assert repo.get_simulation(other.id, record.id) is None
+
+
+
+def test_repository_load_preserves_state_and_rng():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    from backend.database import Base
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    with Session() as session:
+        repo = SimulationRepository(session)
+        user = repo.upsert_user("resume-user", "resume@example.com", "Resume User", None)
+        original = Simulation(seed=99, population=12)
+        record = repo.create_simulation(user.id, original, "Resume Test")
+        original.run(8)
+        repo.save_state(record.id, original)
+
+        loaded = repo.load_simulation(user.id, record.id)
+        assert loaded.world.day == original.world.day
+        assert loaded.world.population == original.world.population
+        assert loaded.metrics_history[-1] == original.metrics_history[-1]
+        assert loaded.world.events == original.world.events
+
+        expected = Simulation(seed=99, population=12)
+        expected.run(8)
+        expected.tick()
+        loaded.tick()
+        assert loaded.world.day == expected.world.day
+        assert loaded.world.agents == expected.world.agents
+        assert loaded.world.villages == expected.world.villages
