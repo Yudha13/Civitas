@@ -61,7 +61,7 @@
 - [x] User-owned simulations
 - [x] Simulation metadata
 - [x] Historical metrics
-- [ ] Replay support
+- [x] Simulation load/resume\n- [x] RNG state persistence for deterministic continuation\n- [x] Replay/load API
 
 ## Phase 6 — Advanced Systems
 - [ ] Politics
