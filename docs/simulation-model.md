@@ -71,10 +71,12 @@ Current execution order:
 3. village food trade
 4. resource consumption and aging
 5. births
-6. migration
-7. daily summary
-8. world validation
-9. metrics snapshot
+6. social interactions
+7. scarcity disputes
+8. migration
+9. daily summary
+10. world validation
+11. metrics snapshot
 
 The exact ordering is part of the simulation model and must be documented whenever changed.
 
@@ -127,3 +129,18 @@ For example, a village with persistent food scarcity may lose population through
 ## MVP Success Condition
 
 A simulation containing approximately 500 agents should run for 365 ticks without invalid state, while producing inspectable population, resource, migration, and event histories.
+
+
+## Social Relationships
+
+Agents can form pairwise relationships through same-village interactions. Relationship trust starts neutral and changes from occupation similarity and wealth differences. Daily social sampling is bounded so relationship growth remains computationally manageable while preserving seeded determinism.
+
+Low-trust relationships can produce non-violent disputes when village food scarcity is severe. Disputes reduce relationship trust and are recorded as structured conflict events.
+
+Relationship integrity is fully validated periodically during long simulations rather than scanning the entire relationship graph every tick. Agent, roster, and resource invariants remain checked every tick.
+
+## Performance and Validation
+
+The engine targets approximately 500 agents for 365 simulated days. Event-derived daily metrics are maintained incrementally instead of rescanning the full event history each tick.
+
+Full relationship validation runs every 30 days, while lightweight world validation runs every tick. This preserves deterministic behavior while preventing the relationship graph from turning routine validation into an accidental quadratic tax.
