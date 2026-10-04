@@ -20,6 +20,7 @@ class EventType(str, Enum):
     ECONOMY = "economy"
     TRADE = "trade"
     BIRTH = "birth"
+    MIGRATION = "migration"
 
 
 @dataclass(frozen=True)
@@ -90,6 +91,8 @@ class World:
                 raise ValueError(f"Village {village.id} has negative resources.")
 
         for agent in self.agents.values():
+            if agent.age < 0:
+                raise ValueError(f"Agent {agent.id} has negative age.")
             if agent.health < 0 or agent.health > 100:
                 raise ValueError(f"Agent {agent.id} has invalid health.")
             if agent.hunger < 0 or agent.hunger > 100:
@@ -98,6 +101,8 @@ class World:
                 raise ValueError(f"Agent {agent.id} has invalid trust.")
             if agent.wealth < 0:
                 raise ValueError(f"Agent {agent.id} has negative wealth.")
+            if agent.fertility < 0:
+                raise ValueError(f"Agent {agent.id} has negative fertility.")
             if agent.village_id not in self.villages:
                 raise ValueError(f"Agent {agent.id} references an unknown village.")
             if agent.id not in self.villages[agent.village_id].agents:
