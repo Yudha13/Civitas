@@ -51,6 +51,8 @@ def test_metrics_track_population_and_resources():
     assert current.migrations >= 0
     assert current.social_interactions >= 0
     assert current.conflicts >= 0
+    assert 0 <= current.wealth_gini <= 1
+    assert 0 <= current.top_10_wealth_share <= 1
     assert all(agent.wealth >= 0 for agent in simulation.world.agents.values())
 
 
