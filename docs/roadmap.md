@@ -39,7 +39,10 @@
 
 ## Phase 4 — Web Interface
 - [x] Dashboard
-- [x] World view
+- [x] World view foundation
+- [x] Interactive village map
+- [x] Village selection and linked agent filtering
+- [x] Faction visual identity
 - [x] Simulation controls
 - [x] Agent inspector
 - [x] Event log
