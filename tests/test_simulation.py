@@ -1,5 +1,5 @@
 from simulation.engine import Simulation
-from simulation.models import EventType
+from simulation.models import EventType, Occupation
 
 
 def test_initial_population_is_distributed_across_three_villages():
@@ -7,9 +7,7 @@ def test_initial_population_is_distributed_across_three_villages():
 
     assert simulation.world.population == 99
     assert [len(v.agents) for v in simulation.world.villages.values()] == [33, 33, 33]
-    assert set(agent.occupation for agent in simulation.world.agents.values()) == {
-        occupation for occupation in __import__("simulation.models", fromlist=["Occupation"]).Occupation
-    }
+    assert set(agent.occupation for agent in simulation.world.agents.values()) == set(Occupation)
 
 
 def test_tick_advances_one_day_and_records_an_event():
