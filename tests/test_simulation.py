@@ -235,10 +235,12 @@ def test_inequality_reduces_social_trust_deterministically():
     wealth = [1.0, 1.0, 1.0, 1.0, 1.0, 10.0]
     for agent_id, value in zip(ids, wealth):
         simulation.world.agents[agent_id].wealth = value
+        simulation.world.agents[agent_id].age = 0.0
 
+    initial_inequality = simulation.metrics().wealth_gini
     simulation.tick()
 
-    inequality = simulation.metrics().wealth_gini
+    inequality = initial_inequality
     expected_trust = max(0.0, 50.0 - inequality)
     relationships = [
         relationship
