@@ -162,7 +162,7 @@ def agents(request: Request, limit: int = 200) -> list[dict]:
 def list_simulations(request: Request, db: Session = Depends(get_session)) -> list[dict]:
     user = require_user(request)
     records = SimulationRepository(db).list_simulations(int(user["user_id"]))
-    return [{"id": r.id, "name": r.name, "seed": r.seed, "population": r.population, "current_day": r.current_day, "status": r.status, "created_at": r.created_at.isoformat()} for r in records]
+    return [{"id": r.id, "name": r.name, "seed": r.seed, "population": r.population, "initial_population": r.initial_population, "current_day": r.current_day, "status": r.status, "created_at": r.created_at.isoformat()} for r in records]
 
 @app.get("/simulations/{simulation_id}")
 def get_simulation(simulation_id: str, request: Request, db: Session = Depends(get_session)) -> dict:
@@ -170,7 +170,7 @@ def get_simulation(simulation_id: str, request: Request, db: Session = Depends(g
     record = SimulationRepository(db).get_simulation(int(user["user_id"]), simulation_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Simulation not found")
-    return {"id": record.id, "name": record.name, "seed": record.seed, "population": record.population, "current_day": record.current_day, "status": record.status, "engine_version": record.engine_version, "created_at": record.created_at.isoformat(), "updated_at": record.updated_at.isoformat()}
+    return {"id": record.id, "name": record.name, "seed": record.seed, "population": record.population, "initial_population": record.initial_population, "current_day": record.current_day, "status": record.status, "engine_version": record.engine_version, "created_at": record.created_at.isoformat(), "updated_at": record.updated_at.isoformat()}
 
 @app.websocket("/simulation/ws")
 async def simulation_ws(websocket: WebSocket) -> None:
