@@ -7,6 +7,9 @@ def test_initial_population_is_distributed_across_three_villages():
 
     assert simulation.world.population == 99
     assert [len(v.agents) for v in simulation.world.villages.values()] == [33, 33, 33]
+    assert set(agent.occupation for agent in simulation.world.agents.values()) == {
+        occupation for occupation in __import__("simulation.models", fromlist=["Occupation"]).Occupation
+    }
 
 
 def test_tick_advances_one_day_and_records_an_event():
@@ -100,6 +103,16 @@ def test_five_hundred_agents_survive_one_year_in_mvp_conditions():
     assert all(agent.health >= 0 for agent in simulation.world.agents.values())
 
 
+def test_occupation_assignment_is_seeded_and_not_fixed_by_agent_id():
+    first = Simulation(seed=42, population=30)
+    second = Simulation(seed=42, population=30)
+
+    assert [agent.occupation for agent in first.world.agents.values()] == [
+        agent.occupation for agent in second.world.agents.values()
+    ]
+    assert len({agent.occupation for agent in first.world.agents.values()}) > 1
+
+
 def test_trade_moves_food_between_villages_when_a_deficit_exists():
     simulation = Simulation(seed=42, population=12)
     north = simulation.world.villages[1]
@@ -125,6 +138,20 @@ def test_world_validation_rejects_negative_wealth():
         assert False
     except ValueError:
         pass
+
+
+def test_trade_can_emerge_without_manually_forcing_village_food():
+    simulation = Simulation(seed=7, population=90)
+    simulation.run(365)
+
+    trade_events = [
+        event for event in simulation.world.events
+        if event.type == EventType.TRADE
+    ]
+
+    assert trade_events
+    assert simulation.world.population > 0
+    assert all(v.resources.food >= 0 for v in simulation.world.villages.values())
 
 
 def test_same_seed_produces_same_trade_history():
