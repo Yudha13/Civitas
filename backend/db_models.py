@@ -37,6 +37,7 @@ class VillageRecord(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True); simulation_id: Mapped[str] = mapped_column(ForeignKey("simulations.id", ondelete="CASCADE"), nullable=False, index=True)
     village_id: Mapped[int] = mapped_column(Integer, nullable=False); name: Mapped[str] = mapped_column(String(255), nullable=False)
     food: Mapped[float] = mapped_column(Float, nullable=False); wood: Mapped[float] = mapped_column(Float, nullable=False); stone: Mapped[float] = mapped_column(Float, nullable=False)
+    agent_order: Mapped[str | None] = mapped_column(Text)
     simulation: Mapped[SimulationRecord] = relationship(back_populates="villages")
 class AgentRecord(Base):
     __tablename__ = "agents"; __table_args__ = (UniqueConstraint("simulation_id","agent_id",name="uq_agent_simulation_id"),)
