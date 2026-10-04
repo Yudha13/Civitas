@@ -59,6 +59,28 @@ def _world_state() -> dict:
     }
 
 
+def _agent_state(agent_id: int) -> dict:
+    world = simulation.world
+    agent = world.agents[agent_id]
+    village = world.villages[agent.village_id]
+    faction = world.factions.get(agent.faction_id) if agent.faction_id is not None else None
+    return {
+        "id": agent.id,
+        "age": agent.age,
+        "health": agent.health,
+        "hunger": agent.hunger,
+        "wealth": agent.wealth,
+        "trust": agent.trust,
+        "occupation": agent.occupation.value,
+        "village_id": agent.village_id,
+        "village_name": village.name,
+        "alive": agent.alive,
+        "fertility": agent.fertility,
+        "faction_id": agent.faction_id,
+        "faction_name": faction.name if faction else None,
+    }
+
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
@@ -91,6 +113,14 @@ def state() -> dict:
 @app.get("/simulation/metrics")
 def metrics() -> dict:
     return simulation.metrics().__dict__
+
+
+@app.get("/simulation/agents")
+def agents(limit: int = 200) -> list[dict]:
+    if limit < 1 or limit > 1000:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 1000")
+    agent_ids = sorted(simulation.world.agents)[:limit]
+    return [_agent_state(agent_id) for agent_id in agent_ids]
 
 
 @app.websocket("/simulation/ws")
