@@ -40,6 +40,9 @@ class Simulation:
     MIGRATION_FOOD_GAP = 4.0
     SOCIAL_INTERACTION_PROBABILITY = 0.35
     SOCIAL_TRUST_STEP = 0.5
+    DISPUTE_PROBABILITY = 0.08
+    DISPUTE_TRUST_THRESHOLD = 25.0
+    DISPUTE_SCARCITY_THRESHOLD = 1.0
 
     def __init__(self, seed: int = 1, population: int = 100) -> None:
         if population < 0:
@@ -81,6 +84,7 @@ class Simulation:
         self._consumption_phase()
         self._population_phase()
         self._social_phase()
+        self._dispute_phase()
         self._migration_phase()
 
         self._emit(
@@ -236,6 +240,23 @@ class Simulation:
                         agent_id=first_id,
                         village_id=village.id,
                     )
+
+    def _dispute_phase(self) -> None:
+        """Create non-violent disputes when trust is low and food is scarce."""
+        for village in self.world.villages.values():
+            living = sorted(agent_id for agent_id in village.agents if self.world.agents[agent_id].alive)
+            scarcity = village.resources.food / max(len(living), 1)
+            if scarcity > self.DISPUTE_SCARCITY_THRESHOLD:
+                continue
+            for index, first_id in enumerate(living):
+                for second_id in living[index + 1:]:
+                    relationship = self.world.relationships.get((first_id, second_id))
+                    if relationship is None or relationship.trust > self.DISPUTE_TRUST_THRESHOLD:
+                        continue
+                    if self.rng.random() >= self.DISPUTE_PROBABILITY:
+                        continue
+                    relationship.trust = max(0.0, relationship.trust - 1.0)
+                    self._emit(EventType.SOCIAL, f"Agents {first_id} and {second_id} entered a dispute in {village.name}", agent_id=first_id, village_id=village.id)
 
     def _migration_phase(self) -> None:
         living = [agent for agent in self.world.agents.values() if agent.alive and self._is_working_age(agent)]
