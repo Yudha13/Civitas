@@ -246,6 +246,8 @@ class SimulationRepository:
                 conflicts=row.conflicts,
                 faction_count=row.faction_count,
                 average_faction_cohesion=row.average_faction_cohesion,
+                wealth_gini=row.wealth_gini,
+                top_10_wealth_share=row.top_10_wealth_share,
             )
             for row in metric_records
         ]
