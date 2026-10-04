@@ -22,11 +22,11 @@
 
 ## Phase 2 — Society
 - [x] Villages
-- [ ] Relationships
+- [x] Relationships
 - [x] Trust attribute
 - [x] Migration
 - [x] Trade
-- [ ] Basic conflict
+- [x] Basic conflict
 
 ## Phase 3 — Web API
 - [ ] FastAPI application
