@@ -49,6 +49,7 @@ def test_metrics_track_population_and_resources():
     assert current.total_stone > initial.total_stone
     assert current.total_wealth > initial.total_wealth
     assert current.average_wealth > initial.average_wealth
+    assert current.trade_volume >= 0
 
 
 def test_invalid_population_and_run_values_are_rejected():
@@ -96,3 +97,27 @@ def test_five_hundred_agents_survive_one_year_in_mvp_conditions():
     assert simulation.world.day == 365
     assert simulation.world.population > 0
     assert all(agent.health >= 0 for agent in simulation.world.agents.values())
+
+
+def test_trade_moves_food_between_villages_when_a_deficit_exists():
+    simulation = Simulation(seed=42, population=12)
+    north = simulation.world.villages[1]
+    south = simulation.world.villages[3]
+    north.resources.food = 1000.0
+    south.resources.food = 0.0
+
+    simulation.tick()
+
+    assert south.resources.food > 0.0
+    assert any(event.type == EventType.TRADE for event in simulation.world.events)
+
+
+def test_same_seed_produces_same_trade_history():
+    first = Simulation(seed=99, population=30)
+    second = Simulation(seed=99, population=30)
+
+    first.run(20)
+    second.run(20)
+
+    assert first.world.events == second.world.events
+    assert first.metrics_history == second.metrics_history
