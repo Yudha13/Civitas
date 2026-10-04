@@ -241,14 +241,18 @@ def test_inequality_reduces_social_trust_deterministically():
     simulation.tick()
 
     inequality = initial_inequality
-    expected_trust = max(0.0, 50.0 - inequality)
     relationships = [
         relationship
         for relationship in simulation.world.relationships.values()
         if relationship.agent_a in ids and relationship.agent_b in ids
     ]
     assert relationships
-    assert all(abs(relationship.trust - expected_trust) < 1e-12 for relationship in relationships)
+    for relationship in relationships:
+        first = simulation.world.agents[relationship.agent_a]
+        second = simulation.world.agents[relationship.agent_b]
+        wealth_gap_penalty = min(0.25, abs(first.wealth - second.wealth) / 100.0)
+        expected_trust = max(0.0, 50.0 - wealth_gap_penalty - inequality)
+        assert abs(relationship.trust - expected_trust) < 1e-12
 
 
 def test_social_system_is_seeded_and_reproducible():
