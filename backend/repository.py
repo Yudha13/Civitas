@@ -156,16 +156,11 @@ class SimulationRepository:
                 faction_id=row.faction_id,
             )
 
+        village_orders = {row.village_id: row.agent_order for row in village_records}
         for village in world.villages.values():
-            if village.agent_order:
-                village.agents = [agent_id for agent_id in json.loads(village.agent_order) if agent_id in world.agents]
-            else:
-                village.agents = sorted(agent_id for agent_id, agent in world.agents.items() if agent.village_id == village.id)
-
-
-        for village in world.villages.values():
-            if village.agent_order:
-                village.agents = [agent_id for agent_id in json.loads(village.agent_order) if agent_id in world.agents]
+            stored_order = village_orders.get(village.id)
+            if stored_order:
+                village.agents = [agent_id for agent_id in json.loads(stored_order) if agent_id in world.agents]
             else:
                 village.agents = sorted(
                     agent_id for agent_id, agent in world.agents.items() if agent.village_id == village.id
