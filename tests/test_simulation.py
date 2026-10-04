@@ -51,6 +51,8 @@ def test_metrics_track_population_and_resources():
     assert current.total_wealth > initial.total_wealth
     assert current.average_wealth > initial.average_wealth
     assert current.trade_volume >= 0
+    assert current.births >= 0
+    assert current.deaths >= 0
     assert all(agent.wealth >= 0 for agent in simulation.world.agents.values())
 
 
@@ -161,3 +163,21 @@ def test_same_seed_produces_same_trade_history():
 
     assert first.world.events == second.world.events
     assert first.metrics_history == second.metrics_history
+
+
+def test_births_create_new_agents_and_are_seeded():
+    first = Simulation(seed=123, population=100)
+    second = Simulation(seed=123, population=100)
+    first.run(365)
+    second.run(365)
+    births = [event for event in first.world.events if event.type == EventType.BIRTH]
+    assert births
+    assert first.world.events == second.world.events
+    assert first.world.population > 100
+    assert all(first.world.agents[event.agent_id].age == 0.0 for event in births)
+
+
+def test_births_preserve_world_validity():
+    simulation = Simulation(seed=321, population=100)
+    simulation.run(365)
+    simulation.world.validate()
