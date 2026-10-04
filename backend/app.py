@@ -182,7 +182,7 @@ async def simulation_ws(websocket: WebSocket) -> None:
         while True:
             command = await websocket.receive_json()
             action = command.get("action", "state")
-            user_id = int(websocket.session["user_id"])
+            user_id = int(websocket.session["user"]["user_id"])
             sim = active_simulations.get(user_id) or simulation
             if action == "tick":
                 sim.tick()
