@@ -254,3 +254,40 @@ def test_relationship_validation_rejects_invalid_pair():
         pass
 
 
+
+
+def test_faction_forms_from_repeated_high_trust_relationships():
+    simulation = Simulation(seed=10, population=9)
+    simulation.SOCIAL_INTERACTION_PROBABILITY = 0.0
+    village = simulation.world.villages[1]
+    ids = sorted(village.agents[:3])
+    for index, first_id in enumerate(ids):
+        for second_id in ids[index + 1:]:
+            simulation.world.relationships[(first_id, second_id)] = Relationship(
+                first_id, second_id, trust=70.0, interactions=3
+            )
+
+    simulation.tick()
+
+    assert len(simulation.world.factions) == 1
+    faction = next(iter(simulation.world.factions.values()))
+    assert faction.members == ids
+    assert faction.leader_id in ids
+    assert faction.cohesion == 70.0
+    assert all(simulation.world.agents[agent_id].faction_id == faction.id for agent_id in ids)
+    assert any(event.type == EventType.FACTION_FORMED for event in simulation.world.events)
+    simulation.world.validate()
+
+
+def test_faction_formation_is_seeded_and_reproducible():
+    first = Simulation(seed=42, population=30)
+    second = Simulation(seed=42, population=30)
+    first.SOCIAL_INTERACTION_PROBABILITY = 1.0
+    second.SOCIAL_INTERACTION_PROBABILITY = 1.0
+
+    first.run(10)
+    second.run(10)
+
+    assert first.world.factions == second.world.factions
+    assert first.world.events == second.world.events
+    assert first.metrics_history == second.metrics_history
