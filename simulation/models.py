@@ -92,7 +92,7 @@ class World:
     def population(self) -> int:
         return sum(agent.alive for agent in self.agents.values())
 
-    def validate(self) -> None:
+    def validate(self, validate_relationships: bool = True) -> None:
         """Raise ValueError when the world contains an invalid simulation state."""
         if self.day < 0:
             raise ValueError("World day cannot be negative.")
@@ -119,14 +119,16 @@ class World:
             if agent.id not in self.villages[agent.village_id].agents:
                 raise ValueError(f"Agent {agent.id} is missing from its village roster.")
 
-        for key, relationship in self.relationships.items():
-            if key != (relationship.agent_a, relationship.agent_b):
-                raise ValueError("Relationship key does not match its agents.")
-            if relationship.agent_a >= relationship.agent_b:
-                raise ValueError("Relationship agent ids must be ordered.")
-            if relationship.agent_a not in self.agents or relationship.agent_b not in self.agents:
-                raise ValueError("Relationship references an unknown agent.")
-            if relationship.trust < 0 or relationship.trust > 100:
-                raise ValueError("Relationship trust must be between 0 and 100.")
-            if relationship.interactions < 0:
-                raise ValueError("Relationship interactions cannot be negative.")
+
+        if validate_relationships:
+            for key, relationship in self.relationships.items():
+                if key != (relationship.agent_a, relationship.agent_b):
+                    raise ValueError("Relationship key does not match its agents.")
+                if relationship.agent_a >= relationship.agent_b:
+                    raise ValueError("Relationship agent ids must be ordered.")
+                if relationship.agent_a not in self.agents or relationship.agent_b not in self.agents:
+                    raise ValueError("Relationship references an unknown agent.")
+                if relationship.trust < 0 or relationship.trust > 100:
+                    raise ValueError("Relationship trust must be between 0 and 100.")
+                if relationship.interactions < 0:
+                    raise ValueError("Relationship interactions cannot be negative.")
