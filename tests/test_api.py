@@ -2,7 +2,6 @@ from fastapi.testclient import TestClient
 
 from backend.app import app
 
-
 client = TestClient(app)
 
 
@@ -72,3 +71,15 @@ def test_websocket_stream_rejects_invalid_run_days():
 def test_event_limit_is_validated():
     response = client.get("/simulation/events?limit=0")
     assert response.status_code == 400
+
+
+def test_local_frontend_origin_is_allowed():
+    response = client.options(
+        "/simulation/state",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
