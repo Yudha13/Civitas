@@ -32,6 +32,7 @@
 - [x] FastAPI application
 - [x] Simulation lifecycle endpoints
 - [x] World state endpoint
+- [x] Agent inspection endpoint
 - [x] Event endpoint
 - [x] WebSocket stream
 
@@ -39,7 +40,7 @@
 - [x] Dashboard
 - [x] World view
 - [x] Simulation controls
-- [ ] Agent inspector
+- [x] Agent inspector
 - [x] Event log
 - [ ] Charts
 - [x] React + TypeScript frontend foundation
