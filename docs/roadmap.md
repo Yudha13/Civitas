@@ -64,10 +64,12 @@
 - [x] Simulation load/resume\n- [x] RNG state persistence for deterministic continuation\n- [x] Replay/load API
 
 ## Phase 6 — Advanced Systems
+
+Phase 6 begins with measurement-first social stratification. Inequality metrics are deterministic, persisted with metric history, and exposed in the dashboard before inequality is allowed to influence agent behavior.
 - [ ] Politics
 - [x] Factions: emergent formation
 - [x] Faction dynamics: membership cleanup and leader succession
-- [ ] Inequality
+- [x] Inequality measurement: wealth Gini and top-10% wealth share
 - [ ] Environmental disasters
 - [ ] War
 - [ ] Epidemics
