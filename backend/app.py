@@ -121,12 +121,12 @@ def tick(request: Request, db: Session = Depends(get_session)) -> dict:
     return _world_state(sim)
 
 @app.post("/simulation/run")
-def run(request: RunRequest, db: Session = Depends(get_session)) -> dict:
+def run(payload: RunRequest, request: Request, db: Session = Depends(get_session)) -> dict:
     user = require_user(request)
     sim = active_simulations.get(int(user["user_id"]))
     if sim is None:
         raise HTTPException(status_code=404, detail="No active simulation")
-    sim.run(request.days)
+    sim.run(payload.days)
     SimulationRepository(db).save_state(request.session["simulation_id"], sim)
     return _world_state(sim)
 
