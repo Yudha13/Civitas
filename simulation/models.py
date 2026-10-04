@@ -23,7 +23,6 @@ class EventType(str, Enum):
     MIGRATION = "migration"
     SOCIAL = "social"
     CONFLICT = "conflict"
-    CONFLICT = "conflict"
 
 
 @dataclass(frozen=True)
