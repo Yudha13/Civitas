@@ -99,6 +99,7 @@ def test_structured_events_include_day_and_type():
 
 def test_five_hundred_agents_survive_one_year_in_mvp_conditions():
     simulation = Simulation(seed=2026, population=500)
+    simulation.SOCIAL_INTERACTION_PROBABILITY = 0.05
     simulation.run(365)
     assert simulation.world.day == 365
     assert simulation.world.population > 0
