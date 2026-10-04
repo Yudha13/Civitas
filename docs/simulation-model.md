@@ -73,8 +73,9 @@ Current execution order:
 5. births
 6. social interactions
 7. scarcity disputes
-8. migration
-9. daily summary
+8. faction formation
+9. migration
+10. daily summary
 10. world validation
 11. metrics snapshot
 
@@ -144,3 +145,14 @@ Relationship integrity is fully validated periodically during long simulations r
 The engine targets approximately 500 agents for 365 simulated days. Event-derived daily metrics are maintained incrementally instead of rescanning the full event history each tick.
 
 Full relationship validation runs every 30 days, while lightweight world validation runs every tick. This preserves deterministic behavior while preventing the relationship graph from turning routine validation into an accidental quadratic tax.
+
+
+## Factions
+
+Factions are an emergent social layer built on repeated relationships.
+
+A faction forms from a connected group of living agents with sufficient relationship trust, repeated interactions, and minimum group size. The leader is selected deterministically from internal relationship connectivity.
+
+Agents can later join an existing faction when they have multiple strong relationships with its members. Faction cohesion is the average trust of relationships inside the faction.
+
+Faction formation does not directly create politics, war, or scripted alliances. Those remain future systems.
