@@ -158,3 +158,24 @@ def test_persistent_simulation_manager(authenticated_client):
 def test_simulation_detail_cannot_be_read_without_authentication():
     response = client.get("/simulations/not-owned")
     assert response.status_code == 401
+
+
+
+def test_load_simulation_restores_persistent_state(authenticated_client):
+    authenticated_client.post("/simulation/start", json={"seed": 77, "population": 10, "name": "Load Me"})
+    authenticated_client.post("/simulation/run", json={"days": 4})
+    saved = authenticated_client.get("/simulations").json()[0]
+    authenticated_client.post("/simulation/start", json={"seed": 5, "population": 3, "name": "Other"})
+    loaded = authenticated_client.post(f"/simulations/{saved['id']}/load")
+    assert loaded.status_code == 200
+    assert loaded.json()["day"] == 4
+    assert loaded.json()["population"] == saved["population"]
+
+
+def test_load_simulation_isolation(authenticated_client):
+    authenticated_client.post("/simulation/start", json={"seed": 88, "population": 8, "name": "Private"})
+    saved = authenticated_client.get("/simulations").json()[0]
+    other = TestClient(app)
+    other.post("/auth/google", json={"credential": "test-token"})
+    response = other.post(f"/simulations/{saved['id']}/load")
+    assert response.status_code == 404
