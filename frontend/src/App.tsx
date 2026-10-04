@@ -8,14 +8,29 @@ type Metrics = { day: number; population: number; living_population: number; ave
 type SimulationEvent = { type: string; day: number; message: string };
 type StreamMessage = { action: string; state: WorldState; metrics: Metrics };
 type ChartPoint = { day: number; value: number };
+type AuthUser = { subject: string; email: string | null; name: string | null; picture: string | null };
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 const WS_BASE = import.meta.env.VITE_WS_URL ?? API_BASE.replace(/^http/, "ws");
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
+
+function fetchApi(path: string, init?: RequestInit) {
+  return fetch(API_BASE + path, { ...init, credentials: "include" });
+}
+
+declare global {
+  interface Window {
+    google?: any;
+  }
+}
 
 const emptyState: WorldState = { day: 0, population: 0, villages: [], factions: [] };
 const emptyMetrics: Metrics = { day: 0, population: 0, living_population: 0, average_health: 0, average_hunger: 0, total_food: 0, total_wood: 0, total_stone: 0, total_wealth: 0, average_wealth: 0, average_trust: 0, trade_volume: 0, births: 0, deaths: 0, migrations: 0, social_interactions: 0, conflicts: 0, faction_count: 0, average_faction_cohesion: 0 };
 
 function App() {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [authError, setAuthError] = useState("");
   const [state, setState] = useState(emptyState);
   const [metrics, setMetrics] = useState(emptyMetrics);
   const [history, setHistory] = useState<Metrics[]>([]);
@@ -34,17 +49,17 @@ function App() {
   }, []);
 
   const loadEvents = useCallback(async () => {
-    const response = await fetch(API_BASE + "/simulation/events?limit=12");
+    const response = await fetchApi("/simulation/events?limit=12");
     if (response.ok) setEvents(await response.json());
   }, []);
 
   const loadAgents = useCallback(async () => {
-    const response = await fetch(API_BASE + "/simulation/agents?limit=500");
+    const response = await fetchApi("/simulation/agents?limit=500");
     if (response.ok) setAgents(await response.json());
   }, []);
 
   const loadHistory = useCallback(async () => {
-    const response = await fetch(API_BASE + "/simulation/metrics/history?limit=365");
+    const response = await fetchApi("/simulation/metrics/history?limit=365");
     if (response.ok) setHistory(await response.json());
   }, []);
 
@@ -59,6 +74,7 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!user) return;
     const socket = new WebSocket(WS_BASE + "/simulation/ws");
     socketRef.current = socket;
     socket.onopen = () => { setConnected(true); send({ action: "state" }); };
@@ -68,12 +84,19 @@ function App() {
     };
     socket.onclose = () => { setConnected(false); socketRef.current = null; };
     return () => socket.close();
-  }, [applyStream, refreshWorld, send]);
+  }, [applyStream, refreshWorld, send, user]);
 
-  useEffect(() => { refreshWorld(); }, [refreshWorld]);
+  useEffect(() => {
+    void fetchApi("/auth/me").then(async response => {
+      if (response.ok) setUser(await response.json() as AuthUser);
+      setAuthChecked(true);
+    }).catch(() => setAuthChecked(true));
+  }, []);
+
+  useEffect(() => { if (user) refreshWorld(); }, [refreshWorld, user]);
 
   const start = async () => {
-    const response = await fetch(API_BASE + "/simulation/start", {
+    const response = await fetchApi("/simulation/start", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ seed: 42, population: 100 }),
     });
@@ -88,6 +111,28 @@ function App() {
     send({ action: "state" });
     refreshWorld();
   };
+
+  const loginWithGoogle = useCallback(async (credential: string) => {
+    setAuthError("");
+    const response = await fetchApi("/auth/google", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ credential }) });
+    if (!response.ok) { setAuthError("Google login gagal."); return; }
+    setUser(await response.json() as AuthUser);
+  }, []);
+
+  useEffect(() => {
+    if (!authChecked || user || !GOOGLE_CLIENT_ID) return;
+    const timer = window.setInterval(() => {
+      if (!window.google) return;
+      window.clearInterval(timer);
+      window.google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: (response: { credential: string }) => { void loginWithGoogle(response.credential); }, color_scheme: "dark" });
+      const container = document.getElementById("google-login-button");
+      if (container) window.google.accounts.id.renderButton(container, { theme: "outline", size: "large", width: 280 });
+    }, 100);
+    return () => window.clearInterval(timer);
+  }, [authChecked, loginWithGoogle, user]);
+
+  if (!authChecked) return <main className="auth-shell"><section className="panel auth-card"><span className="eyebrow">CIVITAS</span><h1>Loading...</h1></section></main>;
+  if (!user) return <main className="auth-shell"><section className="panel auth-card"><span className="eyebrow">AGENT-BASED CIVILIZATION SIMULATOR</span><h1>CIVITAS</h1><p className="auth-copy">Sign in with Google to create and manage your civilization simulations.</p>{GOOGLE_CLIENT_ID ? <div id="google-login-button" /> : <p className="auth-warning">Google login is not configured. Set VITE_GOOGLE_CLIENT_ID for the frontend.</p>}{authError && <p className="auth-error">{authError}</p>}</section></main>;
 
   const filteredAgents = useMemo(() => {
     const query = agentQuery.trim().toLowerCase();
@@ -107,7 +152,7 @@ function App() {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <div><p className="eyebrow">AGENT-BASED CIVILIZATION SIMULATOR</p><h1>CIVITAS</h1></div>
+        <div><p className="eyebrow">AGENT-BASED CIVILIZATION SIMULATOR</p><h1>CIVITAS</h1>{user.name && <span className="muted">Signed in as {user.name}</span>}</div>
         <div className="status"><span className={"status-dot " + (connected ? "online" : "")} />{connected ? "Simulation stream connected" : "Simulation stream offline"}</div>
       </header>
 
