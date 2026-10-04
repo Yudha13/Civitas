@@ -251,3 +251,27 @@ def test_relationship_validation_rejects_invalid_pair():
         assert False
     except ValueError:
         pass
+
+
+def test_dispute_emerges_from_low_trust_and_scarcity():
+    simulation = Simulation(seed=5, population=6)
+    simulation.SOCIAL_INTERACTION_PROBABILITY = 1.0
+    simulation.DISPUTE_PROBABILITY = 1.0
+    village = simulation.world.villages[1]
+    village.resources.food = 0.0
+    ids = sorted(village.agents[:2])
+    from simulation.models import Relationship
+    simulation.world.relationships[(ids[0], ids[1])] = Relationship(ids[0], ids[1], trust=0.0)
+    simulation.tick()
+    disputes = [event for event in simulation.world.events if "entered a dispute" in event.message]
+    assert disputes
+
+
+def test_dispute_system_is_seeded_and_reproducible():
+    first = Simulation(seed=12, population=30)
+    second = Simulation(seed=12, population=30)
+    first.run(30)
+    second.run(30)
+    assert first.world.events == second.world.events
+    assert first.world.relationships == second.world.relationships
+    assert first.metrics_history == second.metrics_history
