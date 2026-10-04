@@ -8,21 +8,24 @@
 - [ ] Development tooling
 
 ## Phase 1 — Simulation Core
-- [ ] World
-- [ ] Agent
-- [ ] Resource
-- [ ] Occupation
-- [ ] Simulation tick
-- [ ] Seeded random generator
-- [ ] Basic metrics
-- [ ] Unit tests
+- [x] World
+- [x] Agent
+- [x] Resource
+- [x] Occupation
+- [x] Simulation tick
+- [x] Seeded random generator
+- [x] Basic metrics
+- [x] Unit tests
+- [x] Population births
+- [x] Working-age production rules
+- [x] Population and migration validation
 
 ## Phase 2 — Society
-- [ ] Villages
+- [x] Villages
 - [ ] Relationships
-- [ ] Trust
-- [ ] Migration
-- [ ] Trade
+- [x] Trust attribute
+- [x] Migration
+- [x] Trade
 - [ ] Basic conflict
 
 ## Phase 3 — Web API
