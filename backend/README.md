@@ -1,12 +1,22 @@
-# Backend
+# CIVITAS Backend
 
-FastAPI will expose the simulation engine through REST and WebSocket interfaces.
+FastAPI service exposing the simulation engine.
 
-The backend stays thin: simulation rules belong in the engine, not in API routes.
+## Run locally
 
-Planned endpoints:
-- simulation lifecycle
-- world state
-- events
-- metrics
-- WebSocket state stream
+```bash
+pip install -r backend/requirements.txt
+uvicorn backend.app:app --reload
+```
+
+Initial endpoints:
+
+- `GET /health`
+- `POST /simulation/start`
+- `POST /simulation/tick`
+- `POST /simulation/run`
+- `GET /simulation/state`
+- `GET /simulation/metrics`
+- `GET /simulation/events`
+
+The API is intentionally thin. Simulation rules remain in `simulation/`.
