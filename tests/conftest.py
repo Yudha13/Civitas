@@ -8,6 +8,7 @@ os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB}"
 
 import pytest
 from backend.database import Base, engine
+import backend.db_models  # noqa: F401
 
 Base.metadata.create_all(engine)
 
