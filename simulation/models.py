@@ -19,6 +19,7 @@ class EventType(str, Enum):
     DAY_SUMMARY = "day_summary"
     ECONOMY = "economy"
     TRADE = "trade"
+    BIRTH = "birth"
 
 
 @dataclass(frozen=True)
@@ -57,6 +58,7 @@ class Agent:
     occupation: Occupation = Occupation.FARMER
     village_id: int = 1
     alive: bool = True
+    fertility: float = 1.0
 
 
 @dataclass
