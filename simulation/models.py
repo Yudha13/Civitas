@@ -149,6 +149,8 @@ class World:
             for faction in self.factions.values():
                 if faction.leader_id not in self.agents:
                     raise ValueError("Faction leader references an unknown agent.")
+                if faction.leader_id not in faction.members:
+                    raise ValueError("Faction leader must be a faction member.")
                 if faction.cohesion < 0 or faction.cohesion > 100:
                     raise ValueError("Faction cohesion must be between 0 and 100.")
                 if len(faction.members) != len(set(faction.members)):
