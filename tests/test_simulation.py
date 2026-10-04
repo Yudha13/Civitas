@@ -1,4 +1,5 @@
 from simulation.engine import Simulation
+from simulation.models import EventType
 
 
 def test_initial_population_is_distributed_across_three_villages():
@@ -15,7 +16,8 @@ def test_tick_advances_one_day_and_records_an_event():
 
     assert simulation.world.day == 1
     assert simulation.world.population == 100
-    assert simulation.world.events[-1] == "Day 1: population=100"
+    assert simulation.world.events[-1].type == EventType.DAY_SUMMARY
+    assert simulation.world.events[-1].message == "Day 1: population=100"
 
 
 def test_seeded_simulations_are_reproducible():
@@ -71,6 +73,16 @@ def test_world_validation_catches_invalid_agent_state():
         assert False
     except ValueError:
         pass
+
+
+def test_structured_events_include_day_and_type():
+    simulation = Simulation(seed=42, population=10)
+
+    simulation.tick()
+
+    assert simulation.world.events[0].type == EventType.DAY_STARTED
+    assert simulation.world.events[-1].type == EventType.DAY_SUMMARY
+    assert all(event.day == 1 for event in simulation.world.events)
 
 
 def test_five_hundred_agents_survive_one_year_in_mvp_conditions():
