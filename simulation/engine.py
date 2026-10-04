@@ -26,7 +26,7 @@ class Metrics:
 class Simulation:
     """Advance a CIVITAS world one deterministic day at a time."""
 
-    FOOD_PER_DAY = 1.0
+    FOOD_PER_DAY = 1.25
 
     def __init__(self, seed: int = 1, population: int = 100) -> None:
         if population < 0:
@@ -46,7 +46,7 @@ class Simulation:
         occupations = list(Occupation)
         for agent_id in range(1, population + 1):
             village_id = ((agent_id - 1) % 3) + 1
-            occupation = occupations[(agent_id - 1) % len(occupations)]
+            occupation = self.rng.choice(occupations)
             agent = Agent(
                 id=agent_id,
                 age=self.rng.randint(18, 55),
