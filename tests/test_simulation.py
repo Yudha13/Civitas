@@ -47,6 +47,8 @@ def test_metrics_track_population_and_resources():
     assert current.total_food > initial.total_food
     assert current.total_wood > initial.total_wood
     assert current.total_stone > initial.total_stone
+    assert current.total_wealth > initial.total_wealth
+    assert current.average_wealth > initial.average_wealth
 
 
 def test_invalid_population_and_run_values_are_rejected():
@@ -83,6 +85,7 @@ def test_structured_events_include_day_and_type():
     assert simulation.world.events[0].type == EventType.DAY_STARTED
     assert simulation.world.events[-1].type == EventType.DAY_SUMMARY
     assert all(event.day == 1 for event in simulation.world.events)
+    assert any(event.type == EventType.ECONOMY for event in simulation.world.events)
 
 
 def test_five_hundred_agents_survive_one_year_in_mvp_conditions():
