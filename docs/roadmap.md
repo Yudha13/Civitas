@@ -52,6 +52,7 @@
 ## Phase 6 — Advanced Systems
 - [ ] Politics
 - [x] Factions: emergent formation
+- [x] Faction dynamics: membership cleanup and leader succession
 - [ ] Inequality
 - [ ] Environmental disasters
 - [ ] War
