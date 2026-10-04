@@ -136,3 +136,25 @@ def test_local_frontend_origin_is_allowed():
     )
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
+def test_persistent_simulation_manager(authenticated_client):
+    start = authenticated_client.post("/simulation/start", json={"seed": 42, "population": 15, "name": "Saved World"})
+    assert start.status_code == 200
+    simulations = authenticated_client.get("/simulations")
+    assert simulations.status_code == 200
+    saved = simulations.json()[0]
+    assert saved["name"] == "Saved World"
+    assert saved["seed"] == 42
+    detail = authenticated_client.get(f"/simulations/{saved['id']}")
+    assert detail.status_code == 200
+    assert detail.json()["current_day"] == 0
+    tick = authenticated_client.post("/simulation/tick")
+    assert tick.status_code == 200
+    detail = authenticated_client.get(f"/simulations/{saved['id']}")
+    assert detail.json()["current_day"] == 1
+
+
+def test_simulation_detail_cannot_be_read_without_authentication():
+    response = client.get("/simulations/not-owned")
+    assert response.status_code == 401
