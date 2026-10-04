@@ -18,5 +18,11 @@ Initial endpoints:
 - `GET /simulation/state`
 - `GET /simulation/metrics`
 - `GET /simulation/events`
+- `WS /simulation/ws`
 
 The API is intentionally thin. Simulation rules remain in `simulation/`.
+
+
+## WebSocket commands
+
+Send JSON commands: `{"action":"state"}`, `{"action":"tick"}`, or `{"action":"run","days":10}`. Each accepted command returns the current world state and metrics.
