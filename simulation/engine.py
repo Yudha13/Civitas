@@ -44,6 +44,7 @@ class Simulation:
     DISPUTE_PROBABILITY = 0.08
     DISPUTE_TRUST_THRESHOLD = 25.0
     DISPUTE_SCARCITY_THRESHOLD = 1.0
+    SOCIAL_MAX_PARTNERS = 12
 
     def __init__(self, seed: int = 1, population: int = 100) -> None:
         if population < 0:
@@ -216,7 +217,10 @@ class Simulation:
                 if self.world.agents[agent_id].alive
             )
             for index, first_id in enumerate(living):
-                for second_id in living[index + 1:]:
+                candidates = living[index + 1:]
+                if len(candidates) > self.SOCIAL_MAX_PARTNERS:
+                    candidates = self.rng.sample(candidates, self.SOCIAL_MAX_PARTNERS)
+                for second_id in sorted(candidates):
                     if self.rng.random() >= self.SOCIAL_INTERACTION_PROBABILITY:
                         continue
 
