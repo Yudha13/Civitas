@@ -111,7 +111,11 @@ class Simulation:
             total_stone=sum(v.resources.stone for v in self.world.villages.values()),
             total_wealth=sum(agent.wealth for agent in living),
             average_wealth=(sum(agent.wealth for agent in living) / living_count if living_count else 0.0),
-            trade_volume=sum(1.0 for event in self.world.events if event.type == EventType.TRADE and event.day == self.world.day),
+            trade_volume=sum(
+                event.amount or 0.0
+                for event in self.world.events
+                if event.type == EventType.TRADE and event.day == self.world.day
+            ),
         )
 
     def _production_phase(self) -> None:
@@ -191,6 +195,7 @@ class Simulation:
                     EventType.TRADE,
                     f"{amount:g} food traded from village {seller_id} to village {buyer_id}",
                     village_id=buyer_id,
+                    amount=amount,
                 )
 
                 if seller_balance < 1.0:
@@ -216,6 +221,7 @@ class Simulation:
         message: str,
         agent_id: int | None = None,
         village_id: int | None = None,
+        amount: float | None = None,
     ) -> None:
         self.world.events.append(
             Event(
@@ -224,6 +230,7 @@ class Simulation:
                 message=message,
                 agent_id=agent_id,
                 village_id=village_id,
+                amount=amount,
             )
         )
 
