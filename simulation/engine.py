@@ -45,6 +45,8 @@ class Simulation:
     DISPUTE_TRUST_THRESHOLD = 25.0
     DISPUTE_SCARCITY_THRESHOLD = 1.0
     SOCIAL_MAX_PARTNERS = 4
+    DISPUTE_MAX_RELATIONSHIPS = 256
+    VALIDATION_INTERVAL = 30
 
     def __init__(self, seed: int = 1, population: int = 100) -> None:
         if population < 0:
@@ -53,8 +55,14 @@ class Simulation:
         self.rng = Random(seed)
         self.seed = seed
         self.world = self._create_world(population)
-        self.metrics_history: list[Metrics] = [self.metrics()]
+        self._daily_trade_volume = 0.0
+        self._daily_births = 0
+        self._daily_deaths = 0
+        self._daily_migrations = 0
+        self._daily_social_interactions = 0
+        self._daily_conflicts = 0
         self.world.validate()
+        self.metrics_history: list[Metrics] = [self.metrics()]
 
     def _create_world(self, population: int) -> World:
         world = World()
@@ -78,6 +86,12 @@ class Simulation:
     def tick(self) -> World:
         """Advance the simulation by one deterministic day."""
         self.world.day += 1
+        self._daily_trade_volume = 0.0
+        self._daily_births = 0
+        self._daily_deaths = 0
+        self._daily_migrations = 0
+        self._daily_social_interactions = 0
+        self._daily_conflicts = 0
         self._emit(EventType.DAY_STARTED, f"Day {self.world.day} started")
 
         self._production_phase()
@@ -93,7 +107,7 @@ class Simulation:
             EventType.DAY_SUMMARY,
             f"Day {self.world.day}: population={self.world.population}",
         )
-        self.world.validate()
+        self.world.validate(validate_relationships=self.world.day % self.VALIDATION_INTERVAL == 0)
         self.metrics_history.append(self.metrics())
         return self.world
 
@@ -123,12 +137,12 @@ class Simulation:
             total_wealth=sum(agent.wealth for agent in living),
             average_wealth=(sum(agent.wealth for agent in living) / living_count if living_count else 0.0),
             average_trust=(sum(trust_values) / len(trust_values) if trust_values else 0.0),
-            trade_volume=sum(event.amount or 0.0 for event in self.world.events if event.type == EventType.TRADE and event.day == self.world.day),
-            births=sum(1 for event in self.world.events if event.type == EventType.BIRTH and event.day == self.world.day),
-            deaths=sum(1 for event in self.world.events if event.type == EventType.DEATH and event.day == self.world.day),
-            migrations=sum(1 for event in self.world.events if event.type == EventType.MIGRATION and event.day == self.world.day),
-            social_interactions=sum(1 for event in self.world.events if event.type == EventType.SOCIAL and event.day == self.world.day),
-            conflicts=sum(1 for event in self.world.events if event.type == EventType.CONFLICT and event.day == self.world.day),
+            trade_volume=self._daily_trade_volume,
+            births=self._daily_births,
+            deaths=self._daily_deaths,
+            migrations=self._daily_migrations,
+            social_interactions=self._daily_social_interactions,
+            conflicts=self._daily_conflicts,
         )
 
     def _is_working_age(self, agent: Agent) -> bool:
@@ -250,19 +264,35 @@ class Simulation:
     def _dispute_phase(self) -> None:
         """Create non-violent disputes when trust is low and food is scarce."""
         for village in self.world.villages.values():
-            living = sorted(agent_id for agent_id in village.agents if self.world.agents[agent_id].alive)
+            living = [agent_id for agent_id in village.agents if self.world.agents[agent_id].alive]
             scarcity = village.resources.food / max(len(living), 1)
             if scarcity > self.DISPUTE_SCARCITY_THRESHOLD:
                 continue
-            for index, first_id in enumerate(living):
-                for second_id in living[index + 1:]:
-                    relationship = self.world.relationships.get((first_id, second_id))
-                    if relationship is None or relationship.trust > self.DISPUTE_TRUST_THRESHOLD:
-                        continue
-                    if self.rng.random() >= self.DISPUTE_PROBABILITY:
-                        continue
-                    relationship.trust = max(0.0, relationship.trust - 1.0)
-                    self._emit(EventType.CONFLICT, f"Agents {first_id} and {second_id} entered a dispute in {village.name}", agent_id=first_id, village_id=village.id)
+
+            candidates = [
+                relationship
+                for relationship in self.world.relationships.values()
+                if relationship.trust <= self.DISPUTE_TRUST_THRESHOLD
+                and relationship.agent_a in self.world.agents
+                and relationship.agent_b in self.world.agents
+                and self.world.agents[relationship.agent_a].alive
+                and self.world.agents[relationship.agent_b].alive
+                and self.world.agents[relationship.agent_a].village_id == village.id
+                and self.world.agents[relationship.agent_b].village_id == village.id
+            ]
+            if len(candidates) > self.DISPUTE_MAX_RELATIONSHIPS:
+                candidates = self.rng.sample(candidates, self.DISPUTE_MAX_RELATIONSHIPS)
+
+            for relationship in candidates:
+                if self.rng.random() >= self.DISPUTE_PROBABILITY:
+                    continue
+                relationship.trust = max(0.0, relationship.trust - 1.0)
+                self._emit(
+                    EventType.CONFLICT,
+                    f"Agents {relationship.agent_a} and {relationship.agent_b} entered a dispute in {village.name}",
+                    agent_id=relationship.agent_a,
+                    village_id=village.id,
+                )
 
     def _migration_phase(self) -> None:
         living = [agent for agent in self.world.agents.values() if agent.alive and self._is_working_age(agent)]
@@ -294,6 +324,18 @@ class Simulation:
 
     def _emit(self, event_type: EventType, message: str, agent_id: int | None = None, village_id: int | None = None, amount: float | None = None) -> None:
         self.world.events.append(Event(day=self.world.day, type=event_type, message=message, agent_id=agent_id, village_id=village_id, amount=amount))
+        if event_type == EventType.TRADE:
+            self._daily_trade_volume += amount or 0.0
+        elif event_type == EventType.BIRTH:
+            self._daily_births += 1
+        elif event_type == EventType.DEATH:
+            self._daily_deaths += 1
+        elif event_type == EventType.MIGRATION:
+            self._daily_migrations += 1
+        elif event_type == EventType.SOCIAL:
+            self._daily_social_interactions += 1
+        elif event_type == EventType.CONFLICT:
+            self._daily_conflicts += 1
 
     def _produce(self, village: Village) -> None:
         counts = {occupation: 0 for occupation in Occupation}
