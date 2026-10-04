@@ -172,10 +172,18 @@ def test_load_simulation_restores_persistent_state(authenticated_client):
     assert loaded.json()["population"] == saved["population"]
 
 
-def test_load_simulation_isolation(authenticated_client):
+def test_load_simulation_isolation(authenticated_client, monkeypatch):
     authenticated_client.post("/simulation/start", json={"seed": 88, "population": 8, "name": "Private"})
     saved = authenticated_client.get("/simulations").json()[0]
+
+    monkeypatch.setattr(
+        app_module,
+        "verify_google_credential",
+        lambda credential: GoogleUser("google-other-456", "other@example.com", "Other User", None),
+    )
     other = TestClient(app)
-    other.post("/auth/google", json={"credential": "test-token"})
+    login = other.post("/auth/google", json={"credential": "other-token"})
+    assert login.status_code == 200
+
     response = other.post(f"/simulations/{saved['id']}/load")
     assert response.status_code == 404
