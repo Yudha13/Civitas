@@ -233,9 +233,10 @@ def test_inequality_reduces_social_trust_deterministically():
     village = simulation.world.villages[1]
     ids = sorted(village.agents)
     wealth = [1.0, 1.0, 1.0, 1.0, 1.0, 10.0]
+    for agent in simulation.world.agents.values():
+        agent.age = 0.0
     for agent_id, value in zip(ids, wealth):
         simulation.world.agents[agent_id].wealth = value
-        simulation.world.agents[agent_id].age = 0.0
 
     initial_inequality = simulation.metrics().wealth_gini
     simulation.tick()
