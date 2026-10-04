@@ -26,6 +26,7 @@ class Metrics:
     deaths: int
     migrations: int
     social_interactions: int
+    conflicts: int
 
 
 class Simulation:
@@ -126,6 +127,7 @@ class Simulation:
             deaths=sum(1 for event in self.world.events if event.type == EventType.DEATH and event.day == self.world.day),
             migrations=sum(1 for event in self.world.events if event.type == EventType.MIGRATION and event.day == self.world.day),
             social_interactions=sum(1 for event in self.world.events if event.type == EventType.SOCIAL and event.day == self.world.day),
+            conflicts=sum(1 for event in self.world.events if event.type == EventType.CONFLICT and event.day == self.world.day),
         )
 
     def _is_working_age(self, agent: Agent) -> bool:
@@ -256,7 +258,7 @@ class Simulation:
                     if self.rng.random() >= self.DISPUTE_PROBABILITY:
                         continue
                     relationship.trust = max(0.0, relationship.trust - 1.0)
-                    self._emit(EventType.SOCIAL, f"Agents {first_id} and {second_id} entered a dispute in {village.name}", agent_id=first_id, village_id=village.id)
+                    self._emit(EventType.CONFLICT, f"Agents {first_id} and {second_id} entered a dispute in {village.name}", agent_id=first_id, village_id=village.id)
 
     def _migration_phase(self) -> None:
         living = [agent for agent in self.world.agents.values() if agent.alive and self._is_working_age(agent)]
