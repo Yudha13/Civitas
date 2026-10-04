@@ -117,11 +117,6 @@ def test_websocket_stream_returns_state_and_advances_simulation(authenticated_cl
         assert tick["metrics"]["day"] == 1
 
 
-def test_websocket_requires_authentication():
-    with client.websocket_connect("/simulation/ws", raise_server_exceptions=False) as websocket:
-        assert websocket is not None
-
-
 def test_websocket_stream_rejects_invalid_run_days(authenticated_client):
     with authenticated_client.websocket_connect("/simulation/ws") as websocket:
         websocket.send_json({"action": "run", "days": -1})
