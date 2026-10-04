@@ -36,12 +36,15 @@
 - [x] WebSocket stream
 
 ## Phase 4 — Web Interface
-- [ ] Dashboard
-- [ ] World view
-- [ ] Simulation controls
+- [x] Dashboard
+- [x] World view
+- [x] Simulation controls
 - [ ] Agent inspector
-- [ ] Event log
+- [x] Event log
 - [ ] Charts
+- [x] React + TypeScript frontend foundation
+- [x] WebSocket live updates
+- [x] Frontend CI build verification
 
 ## Phase 5 — Persistence
 - [ ] PostgreSQL schema
