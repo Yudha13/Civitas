@@ -69,6 +69,8 @@ class MetricRecord(Base):
     births: Mapped[int] = mapped_column(Integer, nullable=False); deaths: Mapped[int] = mapped_column(Integer, nullable=False); migrations: Mapped[int] = mapped_column(Integer, nullable=False)
     social_interactions: Mapped[int] = mapped_column(Integer, nullable=False); conflicts: Mapped[int] = mapped_column(Integer, nullable=False); faction_count: Mapped[int] = mapped_column(Integer, nullable=False)
     average_faction_cohesion: Mapped[float] = mapped_column(Float, nullable=False)
+    wealth_gini: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    top_10_wealth_share: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     simulation: Mapped[SimulationRecord] = relationship(back_populates="metrics")
 class EventRecord(Base):
     __tablename__ = "events"; __table_args__ = (Index("ix_events_simulation_day","simulation_id","day"),)
