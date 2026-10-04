@@ -27,7 +27,50 @@ def test_seeded_simulations_are_reproducible():
 
     assert first.world.day == second.world.day == 30
     assert first.world.events == second.world.events
-    assert first.world.population == second.world.population
+    assert first.metrics_history == second.metrics_history
+
+
+def test_metrics_track_population_and_resources():
+    simulation = Simulation(seed=42, population=100)
+
+    initial = simulation.metrics()
+    simulation.tick()
+    current = simulation.metrics()
+
+    assert initial.day == 0
+    assert initial.population == 100
+    assert initial.living_population == 100
+    assert current.day == 1
+    assert current.living_population == 100
+    assert current.total_food > initial.total_food
+    assert current.total_wood > initial.total_wood
+    assert current.total_stone > initial.total_stone
+
+
+def test_invalid_population_and_run_values_are_rejected():
+    try:
+        Simulation(population=-1)
+        assert False
+    except ValueError:
+        pass
+
+    simulation = Simulation()
+    try:
+        simulation.run(-1)
+        assert False
+    except ValueError:
+        pass
+
+
+def test_world_validation_catches_invalid_agent_state():
+    simulation = Simulation(seed=42, population=1)
+    simulation.world.agents[1].health = 101
+
+    try:
+        simulation.world.validate()
+        assert False
+    except ValueError:
+        pass
 
 
 def test_five_hundred_agents_survive_one_year_in_mvp_conditions():
