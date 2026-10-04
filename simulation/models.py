@@ -28,6 +28,7 @@ class Event:
     message: str
     agent_id: int | None = None
     village_id: int | None = None
+    amount: float | None = None
 
 
 @dataclass
@@ -93,6 +94,8 @@ class World:
                 raise ValueError(f"Agent {agent.id} has invalid hunger.")
             if agent.trust < 0 or agent.trust > 100:
                 raise ValueError(f"Agent {agent.id} has invalid trust.")
+            if agent.wealth < 0:
+                raise ValueError(f"Agent {agent.id} has negative wealth.")
             if agent.village_id not in self.villages:
                 raise ValueError(f"Agent {agent.id} references an unknown village.")
             if agent.id not in self.villages[agent.village_id].agents:
