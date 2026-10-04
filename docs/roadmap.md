@@ -56,11 +56,11 @@
 - [x] Backend ID token verification
 - [x] Secure application session
 - [x] Protected simulation API
-- [ ] User persistence
-- [ ] PostgreSQL schema
-- [ ] User-owned simulations
-- [ ] Simulation metadata
-- [ ] Historical metrics
+- [x] User persistence
+- [x] PostgreSQL schema and Alembic migration
+- [x] User-owned simulations
+- [x] Simulation metadata
+- [x] Historical metrics
 - [ ] Replay support
 
 ## Phase 6 — Advanced Systems
