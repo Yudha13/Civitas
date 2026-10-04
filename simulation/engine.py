@@ -1,8 +1,23 @@
 """Deterministic, dependency-free CIVITAS simulation engine."""
 
+from dataclasses import dataclass
 from random import Random
 
 from .models import Agent, Occupation, Village, World
+
+
+@dataclass(frozen=True)
+class Metrics:
+    """Snapshot of the most important world-level indicators."""
+
+    day: int
+    population: int
+    living_population: int
+    average_health: float
+    average_hunger: float
+    total_food: float
+    total_wood: float
+    total_stone: float
 
 
 class Simulation:
@@ -11,9 +26,14 @@ class Simulation:
     FOOD_PER_DAY = 1.0
 
     def __init__(self, seed: int = 1, population: int = 100) -> None:
+        if population < 0:
+            raise ValueError("Population cannot be negative.")
+
         self.rng = Random(seed)
         self.seed = seed
         self.world = self._create_world(population)
+        self.metrics_history: list[Metrics] = [self.metrics()]
+        self.world.validate()
 
     def _create_world(self, population: int) -> World:
         world = World()
@@ -48,12 +68,46 @@ class Simulation:
         self.world.events.append(
             f"Day {self.world.day}: population={self.world.population}"
         )
+
+        self.world.validate()
+        self.metrics_history.append(self.metrics())
         return self.world
 
     def run(self, days: int) -> World:
+        if days < 0:
+            raise ValueError("Days cannot be negative.")
+
         for _ in range(days):
             self.tick()
         return self.world
+
+    def metrics(self) -> Metrics:
+        """Return a point-in-time snapshot without mutating the simulation."""
+        agents = list(self.world.agents.values())
+        living = [agent for agent in agents if agent.alive]
+        living_count = len(living)
+
+        average_health = (
+            sum(agent.health for agent in living) / living_count
+            if living_count
+            else 0.0
+        )
+        average_hunger = (
+            sum(agent.hunger for agent in living) / living_count
+            if living_count
+            else 0.0
+        )
+
+        return Metrics(
+            day=self.world.day,
+            population=len(agents),
+            living_population=living_count,
+            average_health=average_health,
+            average_hunger=average_hunger,
+            total_food=sum(v.resources.food for v in self.world.villages.values()),
+            total_wood=sum(v.resources.wood for v in self.world.villages.values()),
+            total_stone=sum(v.resources.stone for v in self.world.villages.values()),
+        )
 
     def _produce(self, village: Village) -> None:
         counts = {occupation: 0 for occupation in Occupation}
