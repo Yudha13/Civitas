@@ -18,6 +18,8 @@ class Resources:
     stone: float = 50.0
 
     def consume_food(self, amount: float) -> bool:
+        if amount < 0:
+            raise ValueError("Food consumption cannot be negative.")
         if amount <= self.food:
             self.food -= amount
             return True
@@ -27,7 +29,7 @@ class Resources:
 @dataclass
 class Agent:
     id: int
-    age: int
+    age: float
     health: float = 100.0
     hunger: float = 0.0
     wealth: float = 10.0
@@ -55,3 +57,24 @@ class World:
     @property
     def population(self) -> int:
         return sum(agent.alive for agent in self.agents.values())
+
+    def validate(self) -> None:
+        """Raise ValueError when the world contains an invalid simulation state."""
+        if self.day < 0:
+            raise ValueError("World day cannot be negative.")
+
+        for village in self.villages.values():
+            if village.resources.food < 0 or village.resources.wood < 0 or village.resources.stone < 0:
+                raise ValueError(f"Village {village.id} has negative resources.")
+
+        for agent in self.agents.values():
+            if agent.health < 0 or agent.health > 100:
+                raise ValueError(f"Agent {agent.id} has invalid health.")
+            if agent.hunger < 0 or agent.hunger > 100:
+                raise ValueError(f"Agent {agent.id} has invalid hunger.")
+            if agent.trust < 0 or agent.trust > 100:
+                raise ValueError(f"Agent {agent.id} has invalid trust.")
+            if agent.village_id not in self.villages:
+                raise ValueError(f"Agent {agent.id} references an unknown village.")
+            if agent.id not in self.villages[agent.village_id].agents:
+                raise ValueError(f"Agent {agent.id} is missing from its village roster.")
