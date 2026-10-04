@@ -35,8 +35,8 @@ def test_wealth_inequality_metrics_are_deterministic_and_bounded():
         agent.wealth = value
 
     metrics = simulation.metrics()
-    assert metrics.wealth_gini == 0.08181818181818179
-    assert metrics.top_10_wealth_share == 2.0 / 11.0
+    assert abs(metrics.wealth_gini - 0.08181818181818179) < 1e-12
+    assert abs(metrics.top_10_wealth_share - 2.0 / 11.0) < 1e-12
 
 
 def test_metrics_track_population_and_resources():
