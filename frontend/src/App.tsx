@@ -22,6 +22,7 @@ function App() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
   const [agentQuery, setAgentQuery] = useState("");
+  const [selectedVillageId, setSelectedVillageId] = useState<number | null>(null);
   const [events, setEvents] = useState<SimulationEvent[]>([]);
   const [days, setDays] = useState(10);
   const [connected, setConnected] = useState(false);
@@ -82,6 +83,7 @@ function App() {
     setMetrics({ ...emptyMetrics, population: nextState.population, living_population: nextState.population });
     setHistory([{ ...emptyMetrics, population: nextState.population, living_population: nextState.population }]);
     setSelectedAgentId(null);
+    setSelectedVillageId(null);
     setAgentQuery("");
     send({ action: "state" });
     refreshWorld();
@@ -89,11 +91,13 @@ function App() {
 
   const filteredAgents = useMemo(() => {
     const query = agentQuery.trim().toLowerCase();
-    if (!query) return agents;
-    return agents.filter(agent => String(agent.id).includes(query) || agent.occupation.includes(query) || agent.village_name.toLowerCase().includes(query) || (agent.faction_name ?? "").toLowerCase().includes(query));
-  }, [agentQuery, agents]);
+    const visibleAgents = selectedVillageId === null ? agents : agents.filter(agent => agent.village_id === selectedVillageId);
+    if (!query) return visibleAgents;
+    return visibleAgents.filter(agent => String(agent.id).includes(query) || agent.occupation.includes(query) || agent.village_name.toLowerCase().includes(query) || (agent.faction_name ?? "").toLowerCase().includes(query));
+  }, [agentQuery, agents, selectedVillageId]);
 
   const selectedAgent = agents.find(agent => agent.id === selectedAgentId) ?? null;
+  const selectedVillage = state.villages.find(village => village.id === selectedVillageId) ?? null;
   const totals = useMemo(() => ({
     food: state.villages.reduce((sum, v) => sum + v.food, 0),
     wood: state.villages.reduce((sum, v) => sum + v.wood, 0),
@@ -128,6 +132,16 @@ function App() {
 
       <section className="dashboard-grid">
         <article className="panel wide">
+          <div className="section-heading"><div><span className="label">WORLD</span><h2>World Map</h2></div><span className="muted">{state.villages.length} settlements · {metrics.migrations} migrations</span></div>
+          <WorldMap villages={state.villages} agents={agents} factions={state.factions} selectedVillageId={selectedVillageId} onSelect={setSelectedVillageId} />
+          {selectedVillage && <div className="world-selection">
+            <div><span className="label">SELECTED SETTLEMENT</span><strong>{selectedVillage.name}</strong><span>{selectedVillage.agents} agents</span></div>
+            <div className="selection-resources"><span>Food <b>{selectedVillage.food.toFixed(1)}</b></span><span>Wood <b>{selectedVillage.wood.toFixed(1)}</b></span><span>Stone <b>{selectedVillage.stone.toFixed(1)}</b></span></div>
+            <button onClick={() => setSelectedVillageId(null)}>Clear</button>
+          </div>}
+        </article>
+
+        <article className="panel wide">
           <div className="section-heading"><div><span className="label">HISTORY</span><h2>Simulation Trends</h2></div><span className="muted">{history.length} recorded days</span></div>
           <div className="charts-grid">
             <LineChart title="Population" points={history.map(m => ({ day: m.day, value: m.living_population }))} />
@@ -138,19 +152,19 @@ function App() {
         </article>
 
         <article className="panel wide">
-          <div className="section-heading"><div><span className="label">WORLD</span><h2>Villages</h2></div><span className="muted">{state.villages.length} settlements</span></div>
+          <div className="section-heading"><div><span className="label">SETTLEMENTS</span><h2>Villages</h2></div><span className="muted">{state.villages.length} settlements</span></div>
           <div className="village-grid">
-            {state.villages.map(village => <div className="village-card" key={village.id}>
+            {state.villages.map(village => <button className={"village-card " + (village.id === selectedVillageId ? "selected" : "")} key={village.id} onClick={() => setSelectedVillageId(village.id)}>
               <div className="village-title"><h3>{village.name}</h3><span>{village.agents} agents</span></div>
               <ResourceBar label="Food" value={village.food} max={Math.max(totals.food / Math.max(state.villages.length, 1), 1)} />
               <ResourceBar label="Wood" value={village.wood} max={Math.max(totals.wood / Math.max(state.villages.length, 1), 1)} />
               <ResourceBar label="Stone" value={village.stone} max={Math.max(totals.stone / Math.max(state.villages.length, 1), 1)} />
-            </div>)}
+            </button>)}
           </div>
         </article>
 
         <article className="panel wide">
-          <div className="section-heading"><div><span className="label">POPULATION</span><h2>Agent Inspector</h2></div><span className="muted">{filteredAgents.length} of {agents.length} agents</span></div>
+          <div className="section-heading"><div><span className="label">POPULATION</span><h2>Agent Inspector</h2></div><span className="muted">{filteredAgents.length} of {agents.length} agents{selectedVillage ? " · " + selectedVillage.name : ""}</span></div>
           <div className="inspector">
             <div className="agent-list">
               <input className="agent-search" aria-label="Search agents" placeholder="Search ID, occupation, village..." value={agentQuery} onChange={e => setAgentQuery(e.target.value)} />
@@ -182,6 +196,41 @@ function App() {
 function Metric({ label, value }: { label: string; value: string | number }) { return <div className="metric panel"><span className="label">{label}</span><strong>{value}</strong></div>; }
 function Detail({ label, value }: { label: string; value: string }) { return <div className="detail-cell"><span>{label}</span><strong>{value}</strong></div>; }
 function ResourceBar({ label, value, max }: { label: string; value: number; max: number }) { const percentage = Math.min(100, Math.max(0, (value / max) * 100)); return <div className="resource"><div><span>{label}</span><b>{value.toFixed(1)}</b></div><div className="bar"><span style={{ width: percentage + "%" }} /></div></div>; }
+
+function WorldMap({ villages, agents, factions, selectedVillageId, onSelect }: { villages: Village[]; agents: Agent[]; factions: Faction[]; selectedVillageId: number | null; onSelect: (id: number) => void }) {
+  const positions = [{ x: 18, y: 58 }, { x: 50, y: 28 }, { x: 82, y: 62 }];
+  const nodes = villages.map((village, index) => ({ village, ...(positions[index % positions.length]) }));
+  const factionColor = (id: number) => ["#6ee7b7", "#93c5fd", "#f0abfc", "#fcd34d", "#fda4af"][Math.abs(id) % 5];
+  return <div className="world-map-wrap">
+    <svg className="world-map" viewBox="0 0 100 100" role="img" aria-label="Interactive civilization world map">
+      <defs><pattern id="world-grid" width="5" height="5" patternUnits="userSpaceOnUse"><path d="M 5 0 L 0 0 0 5" fill="none" stroke="currentColor" opacity=".08" strokeWidth=".15" /></pattern></defs>
+      <rect width="100" height="100" fill="url(#world-grid)" />
+      {nodes.length > 1 && nodes.slice(1).map((node, index) => <line key={"link-" + node.village.id} x1={nodes[index].x} y1={nodes[index].y} x2={node.x} y2={node.y} stroke="currentColor" opacity=".16" strokeWidth=".35" strokeDasharray="1.2 1.4" />)}
+      {nodes.map(node => {
+        const villageAgents = agents.filter(agent => agent.village_id === node.village.id && agent.alive).slice(0, 18);
+        return <g key={node.village.id} className="world-node" onClick={() => onSelect(node.village.id)} role="button" aria-label={"Select " + node.village.name} tabIndex={0} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") onSelect(node.village.id); }}>
+          <circle cx={node.x} cy={node.y} r={node.village.id === selectedVillageId ? 9 : 7} fill="#0b1117" stroke={node.village.id === selectedVillageId ? "#f8fafc" : "#6ee7b7"} strokeWidth=".8" />
+          <circle cx={node.x} cy={node.y} r="5.2" fill="#111a22" stroke="currentColor" strokeWidth=".25" opacity=".9" />
+          {villageAgents.map((agent, index) => {
+            const angle = (index / Math.max(villageAgents.length, 1)) * Math.PI * 2;
+            const radius = 3.4 + (index % 3) * .8;
+            const faction = agent.faction_id === null ? null : factions.find(item => item.id === agent.faction_id);
+            return <circle key={agent.id} cx={node.x + Math.cos(angle) * radius} cy={node.y + Math.sin(angle) * radius} r=".65" fill={faction ? factionColor(faction.id) : "#81909d"} opacity=".9" />;
+          })}
+          <text x={node.x} y={node.y + 13} textAnchor="middle" fill="currentColor" fontSize="3.2" fontWeight="700">{node.village.name}</text>
+          <text x={node.x} y={node.y + 17} textAnchor="middle" fill="currentColor" opacity=".55" fontSize="2.5">{node.village.agents} agents</text>
+        </g>;
+      })}
+      {metricsLegend(factions, factionColor)}
+    </svg>
+    <div className="world-map-caption"><span><i className="legend-dot settlement" />Settlement</span><span><i className="legend-dot agent" />Agent</span><span><i className="legend-line" />Trade/migration corridor</span></div>
+  </div>;
+}
+
+function metricsLegend(factions: Faction[], factionColor: (id: number) => string) {
+  if (!factions.length) return null;
+  return <foreignObject x="2" y="2" width="96" height="10"><div className="map-legend">{factions.slice(0, 5).map(faction => <span key={faction.id}><i style={{ background: factionColor(faction.id) }} />{faction.name}</span>)}</div></foreignObject>;
+}
 
 function LineChart({ title, points }: { title: string; points: ChartPoint[] }) {
   const width = 560, height = 190, padX = 18, padY = 20;
