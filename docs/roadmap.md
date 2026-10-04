@@ -33,7 +33,7 @@
 - [x] Simulation lifecycle endpoints
 - [x] World state endpoint
 - [x] Event endpoint
-- [ ] WebSocket stream
+- [x] WebSocket stream
 
 ## Phase 4 — Web Interface
 - [ ] Dashboard
