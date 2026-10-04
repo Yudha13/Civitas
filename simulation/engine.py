@@ -21,12 +21,17 @@ class Metrics:
     total_wealth: float
     average_wealth: float
     trade_volume: float
+    births: int
+    deaths: int
 
 
 class Simulation:
     """Advance a CIVITAS world one deterministic day at a time."""
 
     FOOD_PER_DAY = 1.25
+    MIN_REPRODUCTIVE_AGE = 18.0
+    MAX_REPRODUCTIVE_AGE = 45.0
+    BIRTH_PROBABILITY = 0.015
 
     def __init__(self, seed: int = 1, population: int = 100) -> None:
         if population < 0:
@@ -66,6 +71,7 @@ class Simulation:
         self._economy_phase()
         self._trade_phase()
         self._consumption_phase()
+        self._population_phase()
 
         self._emit(
             EventType.DAY_SUMMARY,
@@ -116,6 +122,8 @@ class Simulation:
                 for event in self.world.events
                 if event.type == EventType.TRADE and event.day == self.world.day
             ),
+            births=sum(1 for event in self.world.events if event.type == EventType.BIRTH and event.day == self.world.day),
+            deaths=sum(1 for event in self.world.events if event.type == EventType.DEATH and event.day == self.world.day),
         )
 
     def _production_phase(self) -> None:
@@ -209,6 +217,22 @@ class Simulation:
             and self.world.agents[agent_id].occupation == Occupation.TRADER
         ]
         return max(traders, key=lambda agent: agent.wealth, default=None)
+
+    def _population_phase(self) -> None:
+        """Handle deterministic births after daily survival."""
+        living = [agent for agent in self.world.agents.values() if agent.alive]
+        next_id = max(self.world.agents, default=0) + 1
+        eligible = [agent for agent in living if self.MIN_REPRODUCTIVE_AGE <= agent.age <= self.MAX_REPRODUCTIVE_AGE]
+        for parent in eligible:
+            if self.rng.random() >= self.BIRTH_PROBABILITY * parent.fertility:
+                continue
+            village = self.world.villages[parent.village_id]
+            child = Agent(id=next_id, age=0.0, health=100.0, hunger=0.0, wealth=parent.wealth * 0.25, trust=parent.trust, occupation=Occupation.FARMER, village_id=parent.village_id)
+            parent.wealth *= 0.75
+            self.world.agents[next_id] = child
+            village.agents.append(next_id)
+            self._emit(EventType.BIRTH, f"Agent {next_id} was born in {village.name}", agent_id=next_id, village_id=village.id)
+            next_id += 1
 
     def _consumption_phase(self) -> None:
         for agent in list(self.world.agents.values()):
