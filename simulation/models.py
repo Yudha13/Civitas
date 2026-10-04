@@ -11,6 +11,23 @@ class Occupation(str, Enum):
     TRADER = "trader"
 
 
+class EventType(str, Enum):
+    DAY_STARTED = "day_started"
+    PRODUCTION = "production"
+    CONSUMPTION = "consumption"
+    DEATH = "death"
+    DAY_SUMMARY = "day_summary"
+
+
+@dataclass(frozen=True)
+class Event:
+    day: int
+    type: EventType
+    message: str
+    agent_id: int | None = None
+    village_id: int | None = None
+
+
 @dataclass
 class Resources:
     food: float = 100.0
@@ -52,7 +69,7 @@ class World:
     day: int = 0
     agents: dict[int, Agent] = field(default_factory=dict)
     villages: dict[int, Village] = field(default_factory=dict)
-    events: list[str] = field(default_factory=list)
+    events: list[Event] = field(default_factory=list)
 
     @property
     def population(self) -> int:
