@@ -20,7 +20,7 @@ class SimulationRecord(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False); seed: Mapped[int] = mapped_column(Integer, nullable=False)
-    population: Mapped[int] = mapped_column(Integer, nullable=False); engine_version: Mapped[str] = mapped_column(String(64), nullable=False, default="0.1.0")
+    population: Mapped[int] = mapped_column(Integer, nullable=False); initial_population: Mapped[int] = mapped_column(Integer, nullable=False); rng_state: Mapped[str | None] = mapped_column(Text); engine_version: Mapped[str] = mapped_column(String(64), nullable=False, default="0.1.0")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active"); current_day: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
