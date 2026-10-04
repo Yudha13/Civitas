@@ -12,10 +12,7 @@ def test_health_endpoint():
 
 
 def test_start_and_state_endpoints():
-    response = client.post(
-        "/simulation/start",
-        json={"seed": 42, "population": 30},
-    )
+    response = client.post("/simulation/start", json={"seed": 42, "population": 30})
     assert response.status_code == 200
     state = response.json()
     assert state["day"] == 0
@@ -27,18 +24,31 @@ def test_tick_and_metrics_endpoints():
     client.post("/simulation/start", json={"seed": 42, "population": 30})
     tick = client.post("/simulation/tick")
     metrics = client.get("/simulation/metrics")
-
     assert tick.status_code == 200
     assert tick.json()["day"] == 1
     assert metrics.status_code == 200
     assert metrics.json()["day"] == 1
 
 
+def test_metrics_history_endpoint():
+    client.post("/simulation/start", json={"seed": 42, "population": 30})
+    client.post("/simulation/run", json={"days": 5})
+    response = client.get("/simulation/metrics/history?limit=3")
+    assert response.status_code == 200
+    history = response.json()
+    assert [item["day"] for item in history] == [3, 4, 5]
+    assert "living_population" in history[-1]
+
+
+def test_metrics_history_limit_is_validated():
+    response = client.get("/simulation/metrics/history?limit=0")
+    assert response.status_code == 400
+
+
 def test_run_and_event_endpoints():
     client.post("/simulation/start", json={"seed": 7, "population": 20})
     run = client.post("/simulation/run", json={"days": 5})
     events = client.get("/simulation/events?limit=5")
-
     assert run.status_code == 200
     assert run.json()["day"] == 5
     assert events.status_code == 200
@@ -48,7 +58,6 @@ def test_run_and_event_endpoints():
 def test_agent_inspector_endpoint_returns_expected_fields():
     client.post("/simulation/start", json={"seed": 42, "population": 12})
     response = client.get("/simulation/agents?limit=5")
-
     assert response.status_code == 200
     agents = response.json()
     assert len(agents) == 5
@@ -66,13 +75,11 @@ def test_agent_limit_is_validated():
 
 def test_websocket_stream_returns_state_and_advances_simulation():
     client.post("/simulation/start", json={"seed": 11, "population": 12})
-
     with client.websocket_connect("/simulation/ws") as websocket:
         websocket.send_json({"action": "state"})
         state = websocket.receive_json()
         assert state["action"] == "state"
         assert state["state"]["day"] == 0
-
         websocket.send_json({"action": "tick"})
         tick = websocket.receive_json()
         assert tick["action"] == "tick"
@@ -95,10 +102,7 @@ def test_event_limit_is_validated():
 def test_local_frontend_origin_is_allowed():
     response = client.options(
         "/simulation/state",
-        headers={
-            "Origin": "http://localhost:5173",
-            "Access-Control-Request-Method": "GET",
-        },
+        headers={"Origin": "http://localhost:5173", "Access-Control-Request-Method": "GET"},
     )
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
