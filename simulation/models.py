@@ -18,6 +18,7 @@ class EventType(str, Enum):
     DEATH = "death"
     DAY_SUMMARY = "day_summary"
     ECONOMY = "economy"
+    TRADE = "trade"
 
 
 @dataclass(frozen=True)
