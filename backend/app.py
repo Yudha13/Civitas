@@ -172,6 +172,19 @@ def get_simulation(simulation_id: str, request: Request, db: Session = Depends(g
         raise HTTPException(status_code=404, detail="Simulation not found")
     return {"id": record.id, "name": record.name, "seed": record.seed, "population": record.population, "initial_population": record.initial_population, "current_day": record.current_day, "status": record.status, "engine_version": record.engine_version, "created_at": record.created_at.isoformat(), "updated_at": record.updated_at.isoformat()}
 
+
+@app.post("/simulations/{simulation_id}/load")
+def load_simulation(simulation_id: str, request: Request, db: Session = Depends(get_session)) -> dict:
+    user = require_user(request)
+    repo = SimulationRepository(db)
+    try:
+        loaded = repo.load_simulation(int(user["user_id"]), simulation_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    active_simulations[int(user["user_id"])] = loaded
+    request.session["simulation_id"] = simulation_id
+    return _world_state(loaded)
+
 @app.websocket("/simulation/ws")
 async def simulation_ws(websocket: WebSocket) -> None:
     await websocket.accept()
