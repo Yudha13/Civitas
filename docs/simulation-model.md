@@ -75,9 +75,11 @@ Current execution order:
 7. scarcity disputes
 8. faction formation
 9. migration
-10. daily summary
-10. world validation
-11. metrics snapshot
+10. faction dynamics
+11. migration
+12. daily summary
+13. world validation
+14. metrics snapshot
 
 The exact ordering is part of the simulation model and must be documented whenever changed.
 
@@ -156,3 +158,17 @@ A faction forms from a connected group of living agents with sufficient relation
 Agents can later join an existing faction when they have multiple strong relationships with its members. Faction cohesion is the average trust of relationships inside the faction.
 
 Faction formation does not directly create politics, war, or scripted alliances. Those remain future systems.
+
+
+## Faction Dynamics
+
+Faction state is maintained after formation each day.
+
+- dead members are removed from active faction membership
+- agents removed from a faction have their faction assignment cleared
+- an empty faction is removed
+- a dead or departed leader is replaced deterministically using internal relationship connectivity
+- faction cohesion is recalculated from internal relationship trust
+- faction count and average cohesion are exposed in daily metrics
+
+Faction dynamics do not yet include faction mergers, splits, formal membership voting, politics, or inter-faction warfare.
