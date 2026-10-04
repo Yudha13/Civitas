@@ -156,7 +156,30 @@ class Simulation:
             conflicts=self._daily_conflicts,
             faction_count=len(self.world.factions),
             average_faction_cohesion=(sum(faction_cohesions) / len(faction_cohesions) if faction_cohesions else 0.0),
+            wealth_gini=self._wealth_gini(living),
+            top_10_wealth_share=self._top_10_wealth_share(living),
         )
+
+    @staticmethod
+    def _wealth_gini(living: list[Agent]) -> float:
+        wealth = sorted(agent.wealth for agent in living)
+        total = sum(wealth)
+        count = len(wealth)
+        if count == 0 or total <= 0:
+            return 0.0
+        weighted = sum((index + 1) * value for index, value in enumerate(wealth))
+        return max(0.0, min(1.0, (2.0 * weighted) / (count * total) - (count + 1) / count))
+
+    @staticmethod
+    def _top_10_wealth_share(living: list[Agent]) -> float:
+        if not living:
+            return 0.0
+        wealth = sorted((agent.wealth for agent in living), reverse=True)
+        total = sum(wealth)
+        if total <= 0:
+            return 0.0
+        top_count = max(1, (len(wealth) + 9) // 10)
+        return max(0.0, min(1.0, sum(wealth[:top_count]) / total))
 
     def _is_working_age(self, agent: Agent) -> bool:
         return agent.age >= self.WORKING_AGE
