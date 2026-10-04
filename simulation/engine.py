@@ -18,6 +18,8 @@ class Metrics:
     total_food: float
     total_wood: float
     total_stone: float
+    total_wealth: float
+    average_wealth: float
 
 
 class Simulation:
@@ -60,6 +62,7 @@ class Simulation:
         self._emit(EventType.DAY_STARTED, f"Day {self.world.day} started")
 
         self._production_phase()
+        self._economy_phase()
         self._consumption_phase()
 
         self._emit(
@@ -104,11 +107,32 @@ class Simulation:
             total_food=sum(v.resources.food for v in self.world.villages.values()),
             total_wood=sum(v.resources.wood for v in self.world.villages.values()),
             total_stone=sum(v.resources.stone for v in self.world.villages.values()),
+            total_wealth=sum(agent.wealth for agent in living),
+            average_wealth=(sum(agent.wealth for agent in living) / living_count if living_count else 0.0),
         )
 
     def _production_phase(self) -> None:
         for village in self.world.villages.values():
             self._produce(village)
+
+    def _economy_phase(self) -> None:
+        for agent in self.world.agents.values():
+            if not agent.alive:
+                continue
+
+            income = {
+                Occupation.FARMER: 0.5,
+                Occupation.HUNTER: 0.5,
+                Occupation.BUILDER: 0.75,
+                Occupation.TRADER: 1.0,
+            }[agent.occupation]
+            agent.wealth += income
+            self._emit(
+                EventType.ECONOMY,
+                f"Agent {agent.id}: +{income:g} wealth",
+                agent_id=agent.id,
+                village_id=agent.village_id,
+            )
 
     def _consumption_phase(self) -> None:
         for agent in list(self.world.agents.values()):
