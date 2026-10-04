@@ -20,6 +20,7 @@ class Metrics:
     total_stone: float
     total_wealth: float
     average_wealth: float
+    trade_volume: float
 
 
 class Simulation:
@@ -63,6 +64,7 @@ class Simulation:
 
         self._production_phase()
         self._economy_phase()
+        self._trade_phase()
         self._consumption_phase()
 
         self._emit(
@@ -109,6 +111,7 @@ class Simulation:
             total_stone=sum(v.resources.stone for v in self.world.villages.values()),
             total_wealth=sum(agent.wealth for agent in living),
             average_wealth=(sum(agent.wealth for agent in living) / living_count if living_count else 0.0),
+            trade_volume=sum(1.0 for event in self.world.events if event.type == EventType.TRADE and event.day == self.world.day),
         )
 
     def _production_phase(self) -> None:
@@ -133,6 +136,74 @@ class Simulation:
                 agent_id=agent.id,
                 village_id=agent.village_id,
             )
+
+    def _trade_phase(self) -> None:
+        """Move surplus food between villages through local traders."""
+        target_per_agent = 2.0
+        surplus = {}
+        deficit = {}
+
+        for village in self.world.villages.values():
+            living = sum(
+                1 for agent_id in village.agents if self.world.agents[agent_id].alive
+            )
+            target = living * target_per_agent
+            balance = village.resources.food - target
+            if balance >= 1.0:
+                surplus[village.id] = balance
+            elif balance < 0:
+                deficit[village.id] = -balance
+
+        if not surplus or not deficit:
+            return
+
+        sellers = {
+            village_id: self._find_trader(village_id)
+            for village_id in surplus
+        }
+        buyers = {
+            village_id: self._find_trader(village_id)
+            for village_id in deficit
+        }
+
+        for seller_id, seller_balance in surplus.items():
+            seller = sellers[seller_id]
+            if seller is None:
+                continue
+
+            for buyer_id in deficit:
+                buyer = buyers[buyer_id]
+                if buyer is None:
+                    continue
+
+                amount = min(seller_balance, deficit[buyer_id], 5.0, buyer.wealth)
+                if amount <= 0:
+                    continue
+
+                self.world.villages[seller_id].resources.food -= amount
+                self.world.villages[buyer_id].resources.food += amount
+                buyer.wealth -= amount
+                seller.wealth += amount
+                seller_balance -= amount
+                deficit[buyer_id] -= amount
+
+                self._emit(
+                    EventType.TRADE,
+                    f"{amount:g} food traded from village {seller_id} to village {buyer_id}",
+                    village_id=buyer_id,
+                )
+
+                if seller_balance < 1.0:
+                    break
+
+    def _find_trader(self, village_id: int) -> Agent | None:
+        traders = [
+            self.world.agents[agent_id]
+            for agent_id in self.world.villages[village_id].agents
+            if self.world.agents[agent_id].alive
+            and self.world.agents[agent_id].occupation == Occupation.TRADER
+        ]
+        return max(traders, key=lambda agent: agent.wealth, default=None)
 
     def _consumption_phase(self) -> None:
         for agent in list(self.world.agents.values()):
