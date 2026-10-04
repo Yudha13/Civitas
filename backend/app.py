@@ -5,7 +5,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel, Field
 import os
 from simulation.engine import Simulation
-from backend.database import get_session
+from backend.database import SessionLocal, get_session
 from backend.repository import SimulationRepository
 from sqlalchemy.orm import Session
 from backend.auth import require_user, verify_google_credential
@@ -197,6 +197,9 @@ async def simulation_ws(websocket: WebSocket) -> None:
             else:
                 await websocket.send_json({"error": f"unknown action: {action}"})
                 continue
+            if action in {"tick", "run"} and websocket.session.get("simulation_id"):
+                with SessionLocal() as db:
+                    SimulationRepository(db).save_state(websocket.session["simulation_id"], sim)
             await websocket.send_json({"action": action, "state": _world_state(sim), "metrics": sim.metrics().__dict__})
     except WebSocketDisconnect:
         return
