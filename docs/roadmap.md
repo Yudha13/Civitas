@@ -51,8 +51,14 @@
 - [x] WebSocket live updates
 - [x] Frontend CI build verification
 
-## Phase 5 — Persistence
+## Phase 5 — Authentication & Persistence
+- [x] Google Identity Services sign-in
+- [x] Backend ID token verification
+- [x] Secure application session
+- [x] Protected simulation API
+- [ ] User persistence
 - [ ] PostgreSQL schema
+- [ ] User-owned simulations
 - [ ] Simulation metadata
 - [ ] Historical metrics
 - [ ] Replay support
