@@ -45,6 +45,7 @@ class Simulation:
     MIGRATION_FOOD_GAP = 4.0
     SOCIAL_INTERACTION_PROBABILITY = 0.35
     SOCIAL_TRUST_STEP = 0.5
+    INEQUALITY_TRUST_PENALTY = 1.0
     DISPUTE_PROBABILITY = 0.08
     DISPUTE_TRUST_THRESHOLD = 25.0
     DISPUTE_SCARCITY_THRESHOLD = 1.0
@@ -261,6 +262,8 @@ class Simulation:
 
     def _social_phase(self) -> None:
         """Create local pairwise interactions and update relationship trust."""
+        inequality = self._wealth_gini([agent for agent in self.world.agents.values() if agent.alive])
+
         for village in self.world.villages.values():
             living = sorted(
                 agent_id for agent_id in village.agents
@@ -284,7 +287,11 @@ class Simulation:
                     second = self.world.agents[second_id]
                     similarity = 1.0 if first.occupation == second.occupation else 0.0
                     wealth_gap = abs(first.wealth - second.wealth)
-                    trust_delta = self.SOCIAL_TRUST_STEP * similarity - min(0.25, wealth_gap / 100.0)
+                    trust_delta = (
+                        self.SOCIAL_TRUST_STEP * similarity
+                        - min(0.25, wealth_gap / 100.0)
+                        - inequality * self.INEQUALITY_TRUST_PENALTY
+                    )
                     relationship.trust = max(0.0, min(100.0, relationship.trust + trust_delta))
                     relationship.interactions += 1
 
