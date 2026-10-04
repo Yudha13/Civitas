@@ -29,6 +29,8 @@ class Metrics:
     conflicts: int
     faction_count: int
     average_faction_cohesion: float
+    wealth_gini: float
+    top_10_wealth_share: float
 
 
 class Simulation:
