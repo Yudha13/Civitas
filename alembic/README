@@ -1,0 +1,7 @@
+# CIVITAS database migrations
+
+Run:
+
+    alembic upgrade head
+
+Set DATABASE_URL for PostgreSQL. Without it, migrations use local SQLite.
