@@ -1,10 +1,19 @@
 """FastAPI application for the CIVITAS simulation."""
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from simulation.engine import Simulation
 
 app = FastAPI(title="CIVITAS API", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class SimulationConfig(BaseModel):
