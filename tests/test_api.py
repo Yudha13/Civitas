@@ -46,6 +46,29 @@ def test_run_and_event_endpoints():
     assert len(events.json()) == 5
 
 
+def test_websocket_stream_returns_state_and_advances_simulation():
+    client.post("/simulation/start", json={"seed": 11, "population": 12})
+
+    with client.websocket_connect("/simulation/ws") as websocket:
+        websocket.send_json({"action": "state"})
+        state = websocket.receive_json()
+        assert state["action"] == "state"
+        assert state["state"]["day"] == 0
+
+        websocket.send_json({"action": "tick"})
+        tick = websocket.receive_json()
+        assert tick["action"] == "tick"
+        assert tick["state"]["day"] == 1
+        assert tick["metrics"]["day"] == 1
+
+
+def test_websocket_stream_rejects_invalid_run_days():
+    with client.websocket_connect("/simulation/ws") as websocket:
+        websocket.send_json({"action": "run", "days": -1})
+        response = websocket.receive_json()
+        assert response["error"] == "days must be a non-negative integer"
+
+
 def test_event_limit_is_validated():
     response = client.get("/simulation/events?limit=0")
     assert response.status_code == 400
