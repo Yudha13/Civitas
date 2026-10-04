@@ -33,6 +33,7 @@
 - [x] Simulation lifecycle endpoints
 - [x] World state endpoint
 - [x] Agent inspection endpoint
+- [x] Historical metrics endpoint
 - [x] Event endpoint
 - [x] WebSocket stream
 
@@ -42,7 +43,7 @@
 - [x] Simulation controls
 - [x] Agent inspector
 - [x] Event log
-- [ ] Charts
+- [x] Historical charts
 - [x] React + TypeScript frontend foundation
 - [x] WebSocket live updates
 - [x] Frontend CI build verification
