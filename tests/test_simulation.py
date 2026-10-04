@@ -1,5 +1,5 @@
 from simulation.engine import Simulation
-from simulation.models import EventType, Occupation, Relationship
+from simulation.models import EventType, Faction, Occupation, Relationship
 
 
 def test_initial_population_is_distributed_across_three_villages():
@@ -287,6 +287,66 @@ def test_faction_formation_is_seeded_and_reproducible():
 
     first.run(10)
     second.run(10)
+
+    assert first.world.factions == second.world.factions
+    assert first.world.events == second.world.events
+    assert first.metrics_history == second.metrics_history
+
+
+def test_faction_metrics_track_count_and_average_cohesion():
+    simulation = Simulation(seed=3, population=9)
+    simulation.SOCIAL_INTERACTION_PROBABILITY = 0.0
+    village = simulation.world.villages[1]
+    ids = sorted(village.agents[:3])
+    for index, first_id in enumerate(ids):
+        for second_id in ids[index + 1:]:
+            simulation.world.relationships[(first_id, second_id)] = Relationship(
+                first_id, second_id, trust=70.0, interactions=3
+            )
+
+    simulation.tick()
+
+    metrics = simulation.metrics()
+    assert metrics.faction_count == 1
+    assert metrics.average_faction_cohesion == 70.0
+
+
+def test_faction_replaces_dead_leader_deterministically():
+    simulation = Simulation(seed=4, population=9)
+    simulation.SOCIAL_INTERACTION_PROBABILITY = 0.0
+    village = simulation.world.villages[1]
+    ids = sorted(village.agents[:3])
+    relationships = [
+        Relationship(ids[0], ids[1], trust=80.0, interactions=4),
+        Relationship(ids[0], ids[2], trust=80.0, interactions=4),
+        Relationship(ids[1], ids[2], trust=60.0, interactions=3),
+    ]
+    for relationship in relationships:
+        simulation.world.relationships[(relationship.agent_a, relationship.agent_b)] = relationship
+
+    faction = Faction(1, "Faction 1", ids[0], ids.copy())
+    simulation.world.factions[1] = faction
+    for agent_id in ids:
+        simulation.world.agents[agent_id].faction_id = 1
+
+    simulation.world.agents[ids[0]].alive = False
+    simulation.tick()
+
+    assert simulation.world.factions[1].members == ids[1:]
+    assert simulation.world.factions[1].leader_id == ids[1]
+    assert simulation.world.agents[ids[0]].faction_id is None
+    assert any(event.type == EventType.FACTION_LEADER_CHANGED for event in simulation.world.events)
+    simulation.world.validate()
+
+
+def test_faction_dynamics_are_seeded_and_reproducible():
+    first = Simulation(seed=55, population=30)
+    second = Simulation(seed=55, population=30)
+    first.SOCIAL_INTERACTION_PROBABILITY = 0.2
+    second.SOCIAL_INTERACTION_PROBABILITY = 0.2
+
+    first.run(60)
+    second.run(60)
 
     assert first.world.factions == second.world.factions
     assert first.world.events == second.world.events
