@@ -23,6 +23,8 @@ class EventType(str, Enum):
     MIGRATION = "migration"
     SOCIAL = "social"
     CONFLICT = "conflict"
+    FACTION_FORMED = "faction_formed"
+    FACTION_JOINED = "faction_joined"
 
 
 @dataclass(frozen=True)
@@ -70,6 +72,16 @@ class Agent:
     village_id: int = 1
     alive: bool = True
     fertility: float = 1.0
+    faction_id: int | None = None
+
+
+@dataclass
+class Faction:
+    id: int
+    name: str
+    leader_id: int
+    members: list[int] = field(default_factory=list)
+    cohesion: float = 0.0
 
 
 @dataclass
@@ -86,6 +98,7 @@ class World:
     agents: dict[int, Agent] = field(default_factory=dict)
     villages: dict[int, Village] = field(default_factory=dict)
     relationships: dict[tuple[int, int], Relationship] = field(default_factory=dict)
+    factions: dict[int, Faction] = field(default_factory=dict)
     events: list[Event] = field(default_factory=list)
 
     @property
@@ -132,3 +145,15 @@ class World:
                     raise ValueError("Relationship trust must be between 0 and 100.")
                 if relationship.interactions < 0:
                     raise ValueError("Relationship interactions cannot be negative.")
+            for faction in self.factions.values():
+                if faction.leader_id not in self.agents:
+                    raise ValueError("Faction leader references an unknown agent.")
+                if faction.cohesion < 0 or faction.cohesion > 100:
+                    raise ValueError("Faction cohesion must be between 0 and 100.")
+                if len(faction.members) != len(set(faction.members)):
+                    raise ValueError("Faction contains duplicate members.")
+                for member_id in faction.members:
+                    if member_id not in self.agents:
+                        raise ValueError("Faction references an unknown agent.")
+                    if self.agents[member_id].faction_id != faction.id:
+                        raise ValueError("Agent faction membership is inconsistent.")
