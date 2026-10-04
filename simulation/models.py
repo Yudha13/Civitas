@@ -21,6 +21,7 @@ class EventType(str, Enum):
     TRADE = "trade"
     BIRTH = "birth"
     MIGRATION = "migration"
+    SOCIAL = "social"
 
 
 @dataclass(frozen=True)
@@ -31,6 +32,14 @@ class Event:
     agent_id: int | None = None
     village_id: int | None = None
     amount: float | None = None
+
+
+@dataclass
+class Relationship:
+    agent_a: int
+    agent_b: int
+    trust: float = 50.0
+    interactions: int = 0
 
 
 @dataclass
@@ -75,6 +84,7 @@ class World:
     day: int = 0
     agents: dict[int, Agent] = field(default_factory=dict)
     villages: dict[int, Village] = field(default_factory=dict)
+    relationships: dict[tuple[int, int], Relationship] = field(default_factory=dict)
     events: list[Event] = field(default_factory=list)
 
     @property
@@ -107,3 +117,15 @@ class World:
                 raise ValueError(f"Agent {agent.id} references an unknown village.")
             if agent.id not in self.villages[agent.village_id].agents:
                 raise ValueError(f"Agent {agent.id} is missing from its village roster.")
+
+        for key, relationship in self.relationships.items():
+            if key != (relationship.agent_a, relationship.agent_b):
+                raise ValueError("Relationship key does not match its agents.")
+            if relationship.agent_a >= relationship.agent_b:
+                raise ValueError("Relationship agent ids must be ordered.")
+            if relationship.agent_a not in self.agents or relationship.agent_b not in self.agents:
+                raise ValueError("Relationship references an unknown agent.")
+            if relationship.trust < 0 or relationship.trust > 100:
+                raise ValueError("Relationship trust must be between 0 and 100.")
+            if relationship.interactions < 0:
+                raise ValueError("Relationship interactions cannot be negative.")
