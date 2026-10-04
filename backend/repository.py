@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
-from random import Random
 from uuid import uuid4
 
 from sqlalchemy import func, select
@@ -133,6 +132,7 @@ class SimulationRepository:
                 id=row.village_id,
                 name=row.name,
                 resources=Resources(food=row.food, wood=row.wood, stone=row.stone),
+                agent_order=row.agent_order,
             )
 
         agent_records = list(
@@ -156,7 +156,12 @@ class SimulationRepository:
                 fertility=row.fertility,
                 faction_id=row.faction_id,
             )
-            world.villages[row.village_id].agents.append(row.agent_id)
+
+        for village in world.villages.values():
+            if village.agent_order:
+                village.agents = [agent_id for agent_id in json.loads(village.agent_order) if agent_id in world.agents]
+            else:
+                village.agents = sorted(agent_id for agent_id, agent in world.agents.items() if agent.village_id == village.id)
 
         faction_records = list(
             self.session.scalars(
@@ -263,6 +268,7 @@ class SimulationRepository:
                     food=v.resources.food,
                     wood=v.resources.wood,
                     stone=v.resources.stone,
+                    agent_order=json.dumps(v.agents),
                 )
             )
 
