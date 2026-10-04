@@ -50,6 +50,7 @@ def test_metrics_track_population_and_resources():
     assert current.total_wealth > initial.total_wealth
     assert current.average_wealth > initial.average_wealth
     assert current.trade_volume >= 0
+    assert all(agent.wealth >= 0 for agent in simulation.world.agents.values())
 
 
 def test_invalid_population_and_run_values_are_rejected():
@@ -109,7 +110,21 @@ def test_trade_moves_food_between_villages_when_a_deficit_exists():
     simulation.tick()
 
     assert south.resources.food > 0.0
-    assert any(event.type == EventType.TRADE for event in simulation.world.events)
+    trade_events = [event for event in simulation.world.events if event.type == EventType.TRADE]
+    assert trade_events
+    assert all(event.amount is not None and event.amount > 0 for event in trade_events)
+    assert simulation.metrics().trade_volume == sum(event.amount for event in trade_events)
+
+
+def test_world_validation_rejects_negative_wealth():
+    simulation = Simulation(seed=42, population=1)
+    simulation.world.agents[1].wealth = -0.1
+
+    try:
+        simulation.world.validate()
+        assert False
+    except ValueError:
+        pass
 
 
 def test_same_seed_produces_same_trade_history():
