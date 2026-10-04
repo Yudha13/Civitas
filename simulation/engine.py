@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from random import Random
 
-from .models import Agent, Event, EventType, Occupation, Relationship, Village, World
+from .models import Agent, Event, EventType, Faction, Occupation, Relationship, Village, World
 
 
 @dataclass(frozen=True)
@@ -46,6 +46,9 @@ class Simulation:
     DISPUTE_SCARCITY_THRESHOLD = 1.0
     SOCIAL_MAX_PARTNERS = 4
     DISPUTE_MAX_RELATIONSHIPS = 256
+    FACTION_TRUST_THRESHOLD = 55.0
+    FACTION_MIN_INTERACTIONS = 3
+    FACTION_MIN_SIZE = 3
     VALIDATION_INTERVAL = 30
 
     def __init__(self, seed: int = 1, population: int = 100) -> None:
@@ -101,6 +104,7 @@ class Simulation:
         self._population_phase()
         self._social_phase()
         self._dispute_phase()
+        self._faction_phase()
         self._migration_phase()
 
         self._emit(
@@ -293,6 +297,100 @@ class Simulation:
                     agent_id=relationship.agent_a,
                     village_id=village.id,
                 )
+
+    def _faction_phase(self) -> None:
+        """Form small factions from repeated, high-trust social relationships."""
+        strong = [
+            relationship
+            for relationship in self.world.relationships.values()
+            if relationship.trust >= self.FACTION_TRUST_THRESHOLD
+            and relationship.interactions >= self.FACTION_MIN_INTERACTIONS
+            and self.world.agents[relationship.agent_a].alive
+            and self.world.agents[relationship.agent_b].alive
+        ]
+
+        for agent in sorted(self.world.agents.values(), key=lambda item: item.id):
+            if not agent.alive or agent.faction_id is not None:
+                continue
+            scores = []
+            for faction_id, faction in self.world.factions.items():
+                links = [
+                    relationship
+                    for relationship in strong
+                    if (relationship.agent_a == agent.id and relationship.agent_b in faction.members)
+                    or (relationship.agent_b == agent.id and relationship.agent_a in faction.members)
+                ]
+                if len(links) >= 2:
+                    scores.append((faction_id, sum(link.trust for link in links)))
+            if scores:
+                faction_id, _ = max(scores, key=lambda item: (item[1], -item[0]))
+                faction = self.world.factions[faction_id]
+                faction.members.append(agent.id)
+                agent.faction_id = faction_id
+                self._emit(EventType.FACTION_JOINED, f"Agent {agent.id} joined faction {faction_id}", agent_id=agent.id)
+
+        adjacency = {}
+        for relationship in strong:
+            if self.world.agents[relationship.agent_a].faction_id is not None:
+                continue
+            if self.world.agents[relationship.agent_b].faction_id is not None:
+                continue
+            adjacency.setdefault(relationship.agent_a, set()).add(relationship.agent_b)
+            adjacency.setdefault(relationship.agent_b, set()).add(relationship.agent_a)
+
+        visited = set()
+        next_id = max(self.world.factions, default=0) + 1
+        for start in sorted(adjacency):
+            if start in visited:
+                continue
+            component = []
+            stack = [start]
+            while stack:
+                agent_id = stack.pop()
+                if agent_id in visited:
+                    continue
+                visited.add(agent_id)
+                component.append(agent_id)
+                stack.extend(sorted(adjacency.get(agent_id, ()), reverse=True))
+            if len(component) < self.FACTION_MIN_SIZE:
+                continue
+
+            members = sorted(component)
+            leader_id = max(
+                members,
+                key=lambda member_id: (
+                    sum(
+                        relationship.trust
+                        for relationship in strong
+                        if member_id in (relationship.agent_a, relationship.agent_b)
+                        and relationship.agent_a in members
+                        and relationship.agent_b in members
+                    ),
+                    -member_id,
+                ),
+            )
+            faction = Faction(next_id, f"Faction {next_id}", leader_id, members)
+            self.world.factions[next_id] = faction
+            for member_id in members:
+                self.world.agents[member_id].faction_id = next_id
+            self._update_faction_cohesion(faction)
+            self._emit(EventType.FACTION_FORMED, f"{faction.name} formed with {len(members)} members", agent_id=leader_id)
+            next_id += 1
+
+        for faction in self.world.factions.values():
+            self._update_faction_cohesion(faction)
+
+    def _update_faction_cohesion(self, faction: Faction) -> None:
+        if len(faction.members) < 2:
+            faction.cohesion = 0.0
+            return
+        member_set = set(faction.members)
+        trusts = [
+            relationship.trust
+            for relationship in self.world.relationships.values()
+            if relationship.agent_a in member_set and relationship.agent_b in member_set
+        ]
+        faction.cohesion = sum(trusts) / len(trusts) if trusts else 0.0
 
     def _migration_phase(self) -> None:
         living = [agent for agent in self.world.agents.values() if agent.alive and self._is_working_age(agent)]
