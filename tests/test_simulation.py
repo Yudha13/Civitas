@@ -28,6 +28,17 @@ def test_seeded_simulations_are_reproducible():
     assert first.metrics_history == second.metrics_history
 
 
+def test_wealth_inequality_metrics_are_deterministic_and_bounded():
+    simulation = Simulation(seed=42, population=10)
+    wealth = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0]
+    for agent, value in zip(simulation.world.agents.values(), wealth):
+        agent.wealth = value
+
+    metrics = simulation.metrics()
+    assert metrics.wealth_gini == 0.08181818181818179
+    assert metrics.top_10_wealth_share == 2.0 / 11.0
+
+
 def test_metrics_track_population_and_resources():
     simulation = Simulation(seed=42, population=100)
     initial = simulation.metrics()
