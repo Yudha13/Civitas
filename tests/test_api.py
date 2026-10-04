@@ -45,6 +45,25 @@ def test_run_and_event_endpoints():
     assert len(events.json()) == 5
 
 
+def test_agent_inspector_endpoint_returns_expected_fields():
+    client.post("/simulation/start", json={"seed": 42, "population": 12})
+    response = client.get("/simulation/agents?limit=5")
+
+    assert response.status_code == 200
+    agents = response.json()
+    assert len(agents) == 5
+    assert agents[0]["id"] == 1
+    assert agents[0]["occupation"] == "farmer"
+    assert agents[0]["village_name"]
+    assert "health" in agents[0]
+    assert "faction_name" in agents[0]
+
+
+def test_agent_limit_is_validated():
+    response = client.get("/simulation/agents?limit=0")
+    assert response.status_code == 400
+
+
 def test_websocket_stream_returns_state_and_advances_simulation():
     client.post("/simulation/start", json={"seed": 11, "population": 12})
 
