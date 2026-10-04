@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from random import Random
 
-from .models import Agent, Occupation, Village, World
+from .models import Agent, Event, EventType, Occupation, Village, World
 
 
 @dataclass(frozen=True)
@@ -55,20 +55,17 @@ class Simulation:
         return world
 
     def tick(self) -> World:
-        """Advance the simulation by one day."""
+        """Advance the simulation by one deterministic day."""
         self.world.day += 1
+        self._emit(EventType.DAY_STARTED, f"Day {self.world.day} started")
 
-        for village in self.world.villages.values():
-            self._produce(village)
+        self._production_phase()
+        self._consumption_phase()
 
-        for agent in list(self.world.agents.values()):
-            if agent.alive:
-                self._consume_and_age(agent)
-
-        self.world.events.append(
-            f"Day {self.world.day}: population={self.world.population}"
+        self._emit(
+            EventType.DAY_SUMMARY,
+            f"Day {self.world.day}: population={self.world.population}",
         )
-
         self.world.validate()
         self.metrics_history.append(self.metrics())
         return self.world
@@ -109,6 +106,32 @@ class Simulation:
             total_stone=sum(v.resources.stone for v in self.world.villages.values()),
         )
 
+    def _production_phase(self) -> None:
+        for village in self.world.villages.values():
+            self._produce(village)
+
+    def _consumption_phase(self) -> None:
+        for agent in list(self.world.agents.values()):
+            if agent.alive:
+                self._consume_and_age(agent)
+
+    def _emit(
+        self,
+        event_type: EventType,
+        message: str,
+        agent_id: int | None = None,
+        village_id: int | None = None,
+    ) -> None:
+        self.world.events.append(
+            Event(
+                day=self.world.day,
+                type=event_type,
+                message=message,
+                agent_id=agent_id,
+                village_id=village_id,
+            )
+        )
+
     def _produce(self, village: Village) -> None:
         counts = {occupation: 0 for occupation in Occupation}
         for agent_id in village.agents:
@@ -116,10 +139,22 @@ class Simulation:
             if agent.alive:
                 counts[agent.occupation] += 1
 
-        village.resources.food += counts[Occupation.FARMER] * 3.0
-        village.resources.food += counts[Occupation.HUNTER] * 2.0
-        village.resources.wood += counts[Occupation.BUILDER] * 1.0
-        village.resources.stone += counts[Occupation.BUILDER] * 0.5
+        food_produced = (
+            counts[Occupation.FARMER] * 3.0
+            + counts[Occupation.HUNTER] * 2.0
+        )
+        wood_produced = counts[Occupation.BUILDER] * 1.0
+        stone_produced = counts[Occupation.BUILDER] * 0.5
+
+        village.resources.food += food_produced
+        village.resources.wood += wood_produced
+        village.resources.stone += stone_produced
+
+        self._emit(
+            EventType.PRODUCTION,
+            f"{village.name}: +{food_produced:g} food, +{wood_produced:g} wood, +{stone_produced:g} stone",
+            village_id=village.id,
+        )
 
     def _consume_and_age(self, agent: Agent) -> None:
         village = self.world.villages[agent.village_id]
@@ -132,9 +167,18 @@ class Simulation:
         else:
             agent.hunger = min(100.0, agent.hunger + 25.0)
             agent.health = max(0.0, agent.health - 5.0)
+            self._emit(
+                EventType.CONSUMPTION,
+                f"Agent {agent.id} was not fed",
+                agent_id=agent.id,
+                village_id=agent.village_id,
+            )
 
         if agent.health <= 0:
             agent.alive = False
-            self.world.events.append(
-                f"Day {self.world.day}: agent {agent.id} died"
+            self._emit(
+                EventType.DEATH,
+                f"Agent {agent.id} died",
+                agent_id=agent.id,
+                village_id=agent.village_id,
             )
