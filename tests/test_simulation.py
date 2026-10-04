@@ -1,5 +1,5 @@
 from simulation.engine import Simulation
-from simulation.models import EventType, Occupation
+from simulation.models import EventType, Occupation, Relationship
 
 
 def test_initial_population_is_distributed_across_three_villages():
@@ -50,6 +50,7 @@ def test_metrics_track_population_and_resources():
     assert current.deaths >= 0
     assert current.migrations >= 0
     assert current.social_interactions >= 0
+    assert current.conflicts >= 0
     assert all(agent.wealth >= 0 for agent in simulation.world.agents.values())
 
 
@@ -216,3 +217,37 @@ def test_social_system_is_seeded_and_reproducible():
     assert first.world.events == second.world.events
     assert first.world.relationships == second.world.relationships
     assert first.metrics_history == second.metrics_history
+
+
+def test_conflict_emerges_from_low_trust_and_scarcity():
+    simulation = Simulation(seed=5, population=6)
+    simulation.SOCIAL_INTERACTION_PROBABILITY = 1.0
+    simulation.CONFLICT_PROBABILITY = 1.0
+    village = simulation.world.villages[1]
+    village.resources.food = 0.0
+    ids = village.agents[:2]
+    simulation.world.relationships[(min(ids), max(ids))] = Relationship(min(ids), max(ids), trust=0.0)
+    simulation.tick()
+    conflicts = [event for event in simulation.world.events if event.type == EventType.CONFLICT]
+    assert conflicts
+    assert simulation.world.agents[ids[0]].health < 100.0
+    assert simulation.world.agents[ids[1]].health < 100.0
+
+
+def test_conflict_is_seeded_and_reproducible():
+    first = Simulation(seed=12, population=30)
+    second = Simulation(seed=12, population=30)
+    first.run(30)
+    second.run(30)
+    assert first.world.events == second.world.events
+    assert first.metrics_history == second.metrics_history
+
+
+def test_relationship_validation_rejects_invalid_pair():
+    simulation = Simulation(seed=1, population=2)
+    simulation.world.relationships[(2, 1)] = Relationship(2, 1)
+    try:
+        simulation.world.validate()
+        assert False
+    except ValueError:
+        pass
