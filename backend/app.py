@@ -1,10 +1,20 @@
 """FastAPI application for the CIVITAS simulation."""
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel, Field
+import os
 from simulation.engine import Simulation
+from backend.auth import require_user, verify_google_credential
 
-app = FastAPI(title="CIVITAS API", version="0.1.0")
+app = FastAPI(title="CIVITAS API", version="0.2.0")
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("CIVITAS_SESSION_SECRET", "civitas-development-session-secret"),
+    same_site="lax",
+    https_only=os.getenv("CIVITAS_COOKIE_SECURE", "0") == "1",
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,6 +30,9 @@ class SimulationConfig(BaseModel):
 
 class RunRequest(BaseModel):
     days: int = Field(ge=0)
+
+class GoogleLoginRequest(BaseModel):
+    credential: str = Field(min_length=1)
 
 simulation = Simulation()
 
@@ -54,38 +67,66 @@ def _agent_state(agent_id: int) -> dict:
 def health() -> dict:
     return {"status": "ok"}
 
+@app.post("/auth/google")
+def google_login(payload: GoogleLoginRequest, request: Request) -> dict:
+    user = verify_google_credential(payload.credential)
+    request.session["user"] = {
+        "subject": user.subject,
+        "email": user.email,
+        "name": user.name,
+        "picture": user.picture,
+    }
+    return request.session["user"]
+
+@app.get("/auth/me")
+def me(request: Request) -> dict:
+    return require_user(request)
+
+@app.post("/auth/logout")
+def logout(request: Request) -> dict:
+    request.session.clear()
+    return {"status": "ok"}
+
+
 @app.post("/simulation/start")
-def start(config: SimulationConfig) -> dict:
+def start(config: SimulationConfig, request: Request) -> dict:
+    require_user(request)
     global simulation
     simulation = Simulation(seed=config.seed, population=config.population)
     return _world_state()
 
 @app.post("/simulation/tick")
-def tick() -> dict:
+def tick(request: Request) -> dict:
+    require_user(request)
     simulation.tick()
     return _world_state()
 
 @app.post("/simulation/run")
 def run(request: RunRequest) -> dict:
+    require_user(request)
     simulation.run(request.days)
     return _world_state()
 
 @app.get("/simulation/state")
-def state() -> dict:
+def state(request: Request) -> dict:
+    require_user(request)
     return _world_state()
 
 @app.get("/simulation/metrics")
-def metrics() -> dict:
+def metrics(request: Request) -> dict:
+    require_user(request)
     return simulation.metrics().__dict__
 
 @app.get("/simulation/metrics/history")
-def metrics_history(limit: int = 365) -> list[dict]:
+def metrics_history(request: Request, limit: int = 365) -> list[dict]:
+    require_user(request)
     if limit < 1 or limit > 5000:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 5000")
     return [snapshot.__dict__ for snapshot in simulation.metrics_history[-limit:]]
 
 @app.get("/simulation/agents")
-def agents(limit: int = 200) -> list[dict]:
+def agents(request: Request, limit: int = 200) -> list[dict]:
+    require_user(request)
     if limit < 1 or limit > 1000:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 1000")
     agent_ids = sorted(simulation.world.agents)[:limit]
@@ -94,6 +135,9 @@ def agents(limit: int = 200) -> list[dict]:
 @app.websocket("/simulation/ws")
 async def simulation_ws(websocket: WebSocket) -> None:
     await websocket.accept()
+    if websocket.session.get("user") is None:
+        await websocket.close(code=4401)
+        return
     try:
         while True:
             command = await websocket.receive_json()
@@ -116,7 +160,8 @@ async def simulation_ws(websocket: WebSocket) -> None:
         return
 
 @app.get("/simulation/events")
-def events(limit: int = 100) -> list[dict]:
+def events(request: Request, limit: int = 100) -> list[dict]:
+    require_user(request)
     if limit < 1 or limit > 1000:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 1000")
     return [event.__dict__ for event in simulation.world.events[-limit:]]
