@@ -1,0 +1,78 @@
+"""SQLAlchemy persistence models for CIVITAS."""
+from __future__ import annotations
+from datetime import datetime, timezone
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from backend.database import Base
+def utcnow() -> datetime: return datetime.now(timezone.utc)
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    google_sub: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    email: Mapped[str | None] = mapped_column(String(320)); name: Mapped[str | None] = mapped_column(String(255))
+    avatar_url: Mapped[str | None] = mapped_column(String(2048))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    last_login_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    simulations: Mapped[list["SimulationRecord"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+class SimulationRecord(Base):
+    __tablename__ = "simulations"
+    __table_args__ = (Index("ix_simulations_user_created", "user_id", "created_at"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False); seed: Mapped[int] = mapped_column(Integer, nullable=False)
+    population: Mapped[int] = mapped_column(Integer, nullable=False); engine_version: Mapped[str] = mapped_column(String(64), nullable=False, default="0.1.0")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="active"); current_day: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True)); finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    user: Mapped[User] = relationship(back_populates="simulations")
+    villages: Mapped[list["VillageRecord"]] = relationship(back_populates="simulation", cascade="all, delete-orphan")
+    agents: Mapped[list["AgentRecord"]] = relationship(back_populates="simulation", cascade="all, delete-orphan")
+    factions: Mapped[list["FactionRecord"]] = relationship(back_populates="simulation", cascade="all, delete-orphan")
+    relationships: Mapped[list["RelationshipRecord"]] = relationship(back_populates="simulation", cascade="all, delete-orphan")
+    metrics: Mapped[list["MetricRecord"]] = relationship(back_populates="simulation", cascade="all, delete-orphan")
+    events: Mapped[list["EventRecord"]] = relationship(back_populates="simulation", cascade="all, delete-orphan")
+class VillageRecord(Base):
+    __tablename__ = "villages"; __table_args__ = (UniqueConstraint("simulation_id","village_id",name="uq_village_simulation_id"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True); simulation_id: Mapped[str] = mapped_column(ForeignKey("simulations.id", ondelete="CASCADE"), nullable=False, index=True)
+    village_id: Mapped[int] = mapped_column(Integer, nullable=False); name: Mapped[str] = mapped_column(String(255), nullable=False)
+    food: Mapped[float] = mapped_column(Float, nullable=False); wood: Mapped[float] = mapped_column(Float, nullable=False); stone: Mapped[float] = mapped_column(Float, nullable=False)
+    simulation: Mapped[SimulationRecord] = relationship(back_populates="villages")
+class AgentRecord(Base):
+    __tablename__ = "agents"; __table_args__ = (UniqueConstraint("simulation_id","agent_id",name="uq_agent_simulation_id"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True); simulation_id: Mapped[str] = mapped_column(ForeignKey("simulations.id", ondelete="CASCADE"), nullable=False, index=True)
+    agent_id: Mapped[int] = mapped_column(Integer, nullable=False); village_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    age: Mapped[float] = mapped_column(Float, nullable=False); health: Mapped[float] = mapped_column(Float, nullable=False); hunger: Mapped[float] = mapped_column(Float, nullable=False)
+    wealth: Mapped[float] = mapped_column(Float, nullable=False); trust: Mapped[float] = mapped_column(Float, nullable=False); occupation: Mapped[str] = mapped_column(String(32), nullable=False)
+    alive: Mapped[bool] = mapped_column(Boolean, nullable=False); fertility: Mapped[float] = mapped_column(Float, nullable=False); faction_id: Mapped[int | None] = mapped_column(Integer)
+    simulation: Mapped[SimulationRecord] = relationship(back_populates="agents")
+class FactionRecord(Base):
+    __tablename__ = "factions"; __table_args__ = (UniqueConstraint("simulation_id","faction_id",name="uq_faction_simulation_id"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True); simulation_id: Mapped[str] = mapped_column(ForeignKey("simulations.id", ondelete="CASCADE"), nullable=False, index=True)
+    faction_id: Mapped[int] = mapped_column(Integer, nullable=False); name: Mapped[str] = mapped_column(String(255), nullable=False); leader_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    cohesion: Mapped[float] = mapped_column(Float, nullable=False); members: Mapped[str] = mapped_column(Text, nullable=False)
+    simulation: Mapped[SimulationRecord] = relationship(back_populates="factions")
+class RelationshipRecord(Base):
+    __tablename__ = "relationships"; __table_args__ = (UniqueConstraint("simulation_id","agent_a","agent_b",name="uq_relationship_sim_agents"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True); simulation_id: Mapped[str] = mapped_column(ForeignKey("simulations.id", ondelete="CASCADE"), nullable=False, index=True)
+    agent_a: Mapped[int] = mapped_column(Integer, nullable=False); agent_b: Mapped[int] = mapped_column(Integer, nullable=False)
+    trust: Mapped[float] = mapped_column(Float, nullable=False); interactions: Mapped[int] = mapped_column(Integer, nullable=False)
+    simulation: Mapped[SimulationRecord] = relationship(back_populates="relationships")
+class MetricRecord(Base):
+    __tablename__ = "metrics"; __table_args__ = (UniqueConstraint("simulation_id","day",name="uq_metric_simulation_day"),Index("ix_metrics_simulation_day","simulation_id","day"))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True); simulation_id: Mapped[str] = mapped_column(ForeignKey("simulations.id", ondelete="CASCADE"), nullable=False)
+    day: Mapped[int] = mapped_column(Integer, nullable=False); population: Mapped[int] = mapped_column(Integer, nullable=False); living_population: Mapped[int] = mapped_column(Integer, nullable=False)
+    average_health: Mapped[float] = mapped_column(Float, nullable=False); average_hunger: Mapped[float] = mapped_column(Float, nullable=False); total_food: Mapped[float] = mapped_column(Float, nullable=False)
+    total_wood: Mapped[float] = mapped_column(Float, nullable=False); total_stone: Mapped[float] = mapped_column(Float, nullable=False); total_wealth: Mapped[float] = mapped_column(Float, nullable=False)
+    average_wealth: Mapped[float] = mapped_column(Float, nullable=False); average_trust: Mapped[float] = mapped_column(Float, nullable=False); trade_volume: Mapped[float] = mapped_column(Float, nullable=False)
+    births: Mapped[int] = mapped_column(Integer, nullable=False); deaths: Mapped[int] = mapped_column(Integer, nullable=False); migrations: Mapped[int] = mapped_column(Integer, nullable=False)
+    social_interactions: Mapped[int] = mapped_column(Integer, nullable=False); conflicts: Mapped[int] = mapped_column(Integer, nullable=False); faction_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    average_faction_cohesion: Mapped[float] = mapped_column(Float, nullable=False)
+    simulation: Mapped[SimulationRecord] = relationship(back_populates="metrics")
+class EventRecord(Base):
+    __tablename__ = "events"; __table_args__ = (Index("ix_events_simulation_day","simulation_id","day"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True); simulation_id: Mapped[str] = mapped_column(ForeignKey("simulations.id", ondelete="CASCADE"), nullable=False)
+    day: Mapped[int] = mapped_column(Integer, nullable=False); event_type: Mapped[str] = mapped_column(String(64), nullable=False); message: Mapped[str] = mapped_column(Text, nullable=False)
+    agent_id: Mapped[int | None] = mapped_column(Integer); village_id: Mapped[int | None] = mapped_column(Integer); amount: Mapped[float | None] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    simulation: Mapped[SimulationRecord] = relationship(back_populates="events")
