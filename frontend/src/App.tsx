@@ -223,7 +223,7 @@ function WorldMap({ villages, agents, factions, selectedVillageId, onSelect }: {
       })}
       {metricsLegend(factions, factionColor)}
     </svg>
-    <div className="world-map-caption"><span><i className="legend-dot settlement" />Settlement</span><span><i className="legend-dot agent" />Agent</span><span><i className="legend-line" />Trade/migration corridor</span></div>
+    <div className="world-map-caption"><span><i className="legend-dot settlement" />Settlement</span><span><i className="legend-dot agent" />Agent</span><span><i className="legend-line" />Inter-village corridor</span></div>
   </div>;
 }
 
