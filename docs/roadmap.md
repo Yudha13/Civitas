@@ -29,10 +29,10 @@
 - [x] Basic conflict
 
 ## Phase 3 — Web API
-- [ ] FastAPI application
-- [ ] Simulation lifecycle endpoints
-- [ ] World state endpoint
-- [ ] Event endpoint
+- [x] FastAPI application
+- [x] Simulation lifecycle endpoints
+- [x] World state endpoint
+- [x] Event endpoint
 - [ ] WebSocket stream
 
 ## Phase 4 — Web Interface
