@@ -468,6 +468,37 @@ def test_environmental_disasters_are_seeded_and_reproducible():
     assert first.metrics_history == second.metrics_history
 
 
+def test_war_hostility_increases_with_scarcity_and_low_trust():
+    simulation = Simulation(seed=41, population=12)
+    simulation.SOCIAL_INTERACTION_PROBABILITY = 0.0
+    first_ids = sorted(simulation.world.villages[1].agents)
+    second_ids = sorted(simulation.world.villages[2].agents)
+    first = Faction(1, "Faction 1", first_ids[0], first_ids[:4], cohesion=80.0)
+    second = Faction(2, "Faction 2", second_ids[0], second_ids[:4], cohesion=80.0)
+    simulation.world.factions[1] = first
+    simulation.world.factions[2] = second
+    for agent_id in first.members:
+        simulation.world.agents[agent_id].faction_id = 1
+    for agent_id in second.members:
+        simulation.world.agents[agent_id].faction_id = 2
+
+    for village in simulation.world.villages.values():
+        village.resources.food = 100.0
+
+    calm = simulation._faction_war_hostility(first, second)
+
+    for village in (simulation.world.villages[1], simulation.world.villages[2]):
+        village.resources.food = 0.0
+    simulation.world.relationships[(first.members[0], second.members[0])] = Relationship(
+        first.members[0], second.members[0], trust=0.0, interactions=3
+    )
+
+    hostile = simulation._faction_war_hostility(first, second)
+    assert 0.0 <= calm <= 1.0
+    assert 0.0 <= hostile <= 1.0
+    assert hostile > calm
+
+
 def test_war_is_bounded_recorded_and_seeded():
     first = Simulation(seed=41, population=12)
     second = Simulation(seed=41, population=12)
