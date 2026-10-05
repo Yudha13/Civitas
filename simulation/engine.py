@@ -33,6 +33,8 @@ class Metrics:
     top_10_wealth_share: float
     political_pressure: float
     environmental_disasters: int
+    wars: int
+    war_casualties: int
 
 
 class Simulation:
@@ -62,6 +64,11 @@ class Simulation:
     ENVIRONMENTAL_RESOURCE_LOSS_MAX = 0.35
     ENVIRONMENTAL_HEALTH_DAMAGE_MIN = 2.0
     ENVIRONMENTAL_HEALTH_DAMAGE_MAX = 8.0
+    WAR_PROBABILITY = 0.01
+    WAR_RESOURCE_LOSS_MIN = 0.05
+    WAR_RESOURCE_LOSS_MAX = 0.15
+    WAR_CASUALTY_RATE_MIN = 0.05
+    WAR_CASUALTY_RATE_MAX = 0.20
     VALIDATION_INTERVAL = 30
 
     def __init__(self, seed: int = 1, population: int = 100) -> None:
@@ -78,6 +85,8 @@ class Simulation:
         self._daily_social_interactions = 0
         self._daily_conflicts = 0
         self._daily_environmental_disasters = 0
+        self._daily_wars = 0
+        self._daily_war_casualties = 0
         self.world.validate()
         self.metrics_history: list[Metrics] = [self.metrics()]
 
@@ -110,6 +119,8 @@ class Simulation:
         self._daily_social_interactions = 0
         self._daily_conflicts = 0
         self._daily_environmental_disasters = 0
+        self._daily_wars = 0
+        self._daily_war_casualties = 0
         self._emit(EventType.DAY_STARTED, f"Day {self.world.day} started")
 
         self._environmental_disaster_phase()
@@ -122,6 +133,7 @@ class Simulation:
         self._dispute_phase()
         self._faction_phase()
         self._faction_dynamics_phase()
+        self._war_phase()
         self._migration_phase()
 
         self._emit(
@@ -172,6 +184,8 @@ class Simulation:
             top_10_wealth_share=self._top_10_wealth_share(living),
             political_pressure=self._political_pressure(living),
             environmental_disasters=self._daily_environmental_disasters,
+            wars=self._daily_wars,
+            war_casualties=self._daily_war_casualties,
         )
 
     @staticmethod
@@ -239,6 +253,57 @@ class Simulation:
             amount=loss,
         )
 
+    def _war_phase(self) -> None:
+        """Resolve a rare, bounded war between two living factions."""
+        factions = [
+            faction for faction in self.world.factions.values()
+            if sum(1 for member_id in faction.members if self.world.agents[member_id].alive) >= self.FACTION_MIN_SIZE
+        ]
+        if len(factions) < 2 or self.rng.random() >= self.WAR_PROBABILITY:
+            return
+
+        first, second = self.rng.sample(sorted(factions, key=lambda item: item.id), 2)
+        self._emit(EventType.WAR_STARTED, f"Faction {first.id} and Faction {second.id} entered war")
+
+        def living_members(faction):
+            return [self.world.agents[member_id] for member_id in faction.members if self.world.agents[member_id].alive]
+
+        first_members = living_members(first)
+        second_members = living_members(second)
+        first_strength = len(first_members) * (0.5 + first.cohesion / 100.0)
+        second_strength = len(second_members) * (0.5 + second.cohesion / 100.0)
+        first_score = first_strength * self.rng.uniform(0.8, 1.2)
+        second_score = second_strength * self.rng.uniform(0.8, 1.2)
+        winner, loser = (first, second) if first_score >= second_score else (second, first)
+
+        casualty_rate = self.rng.uniform(self.WAR_CASUALTY_RATE_MIN, self.WAR_CASUALTY_RATE_MAX)
+        winner_members = living_members(winner)
+        loser_members = living_members(loser)
+        loser_count = max(1, round(len(loser_members) * casualty_rate)) if loser_members else 0
+        winner_count = max(0, round(len(winner_members) * casualty_rate * 0.5))
+
+        loser_targets = sorted(loser_members, key=lambda agent: (agent.health, agent.id))[:loser_count]
+        winner_targets = sorted(winner_members, key=lambda agent: (agent.health, agent.id))[:winner_count]
+        casualties = 0
+        for agent in loser_targets + winner_targets:
+            agent.alive = False
+            agent.health = 0.0
+            casualties += 1
+            self._daily_deaths += 1
+
+        resource_loss = self.rng.uniform(self.WAR_RESOURCE_LOSS_MIN, self.WAR_RESOURCE_LOSS_MAX)
+        affected_villages = set()
+        for faction in (first, second):
+            for member_id in faction.members:
+                affected_villages.add(self.world.agents[member_id].village_id)
+        for village_id in affected_villages:
+            village = self.world.villages[village_id]
+            village.resources.food *= 1.0 - resource_loss
+            village.resources.wood *= 1.0 - resource_loss * 0.5
+
+        self._daily_wars += 1
+        self._daily_war_casualties += casualties
+        self._emit(EventType.WAR_RESOLVED, f"Faction {winner.id} defeated Faction {loser.id}: {casualties} casualties, resources -{resource_loss * 100:.1f}%", amount=float(casualties))
     def _production_phase(self) -> None:
         for village in self.world.villages.values():
             self._produce(village)
