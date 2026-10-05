@@ -444,7 +444,7 @@ def test_environmental_disaster_is_bounded_and_recorded():
     initial_wood = village.resources.wood
     initial_health = [simulation.world.agents[agent_id].health for agent_id in village.agents]
 
-    simulation.tick()
+    simulation._environmental_disaster_phase()
 
     disasters = [event for event in simulation.world.events if event.type == EventType.ENVIRONMENTAL_DISASTER]
     assert len(disasters) == 1
