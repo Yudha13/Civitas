@@ -249,6 +249,7 @@ class SimulationRepository:
                 wealth_gini=row.wealth_gini,
                 top_10_wealth_share=row.top_10_wealth_share,
                 political_pressure=row.political_pressure,
+                environmental_disasters=row.environmental_disasters,
             )
             for row in metric_records
         ]
