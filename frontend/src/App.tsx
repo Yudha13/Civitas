@@ -4,7 +4,7 @@ type Village = { id: number; name: string; agents: number; food: number; wood: n
 type Faction = { id: number; name: string; leader_id: number; members: number[]; cohesion: number };
 type WorldState = { day: number; population: number; villages: Village[]; factions: Faction[] };
 type Agent = { id: number; age: number; health: number; hunger: number; wealth: number; trust: number; occupation: string; village_id: number; village_name: string; alive: boolean; fertility: number; faction_id: number | null; faction_name: string | null };
-type Metrics = { day: number; population: number; living_population: number; average_health: number; average_hunger: number; total_food: number; total_wood: number; total_stone: number; total_wealth: number; average_wealth: number; average_trust: number; trade_volume: number; births: number; deaths: number; migrations: number; social_interactions: number; conflicts: number; faction_count: number; average_faction_cohesion: number; wealth_gini: number; top_10_wealth_share: number };
+type Metrics = { day: number; population: number; living_population: number; average_health: number; average_hunger: number; total_food: number; total_wood: number; total_stone: number; total_wealth: number; average_wealth: number; average_trust: number; trade_volume: number; births: number; deaths: number; migrations: number; social_interactions: number; conflicts: number; faction_count: number; average_faction_cohesion: number; wealth_gini: number; top_10_wealth_share: number; political_pressure: number };
 type SimulationEvent = { type: string; day: number; message: string };
 type StreamMessage = { action: string; state: WorldState; metrics: Metrics };
 type ChartPoint = { day: number; value: number };
@@ -25,7 +25,7 @@ declare global {
 }
 
 const emptyState: WorldState = { day: 0, population: 0, villages: [], factions: [] };
-const emptyMetrics: Metrics = { day: 0, population: 0, living_population: 0, average_health: 0, average_hunger: 0, total_food: 0, total_wood: 0, total_stone: 0, total_wealth: 0, average_wealth: 0, average_trust: 0, trade_volume: 0, births: 0, deaths: 0, migrations: 0, social_interactions: 0, conflicts: 0, faction_count: 0, average_faction_cohesion: 0, wealth_gini: 0, top_10_wealth_share: 0 };
+const emptyMetrics: Metrics = { day: 0, population: 0, living_population: 0, average_health: 0, average_hunger: 0, total_food: 0, total_wood: 0, total_stone: 0, total_wealth: 0, average_wealth: 0, average_trust: 0, trade_volume: 0, births: 0, deaths: 0, migrations: 0, social_interactions: 0, conflicts: 0, faction_count: 0, average_faction_cohesion: 0, wealth_gini: 0, top_10_wealth_share: 0, political_pressure: 0 };
 
 function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -175,6 +175,7 @@ function App() {
         <Metric label="Wealth Gini" value={metrics.wealth_gini.toFixed(2)} />
         <Metric label="Top 10% Wealth" value={(metrics.top_10_wealth_share * 100).toFixed(1) + "%"} />
         <Metric label="Factions" value={metrics.faction_count} />
+        <Metric label="Political Pressure" value={(metrics.political_pressure * 100).toFixed(1) + "%"} />
       </section>
 
       <section className="dashboard-grid">
@@ -196,6 +197,7 @@ function App() {
             <LineChart title="Average Trust" points={history.map(m => ({ day: m.day, value: m.average_trust }))} />
             <LineChart title="Wealth Gini" points={history.map(m => ({ day: m.day, value: m.wealth_gini }))} />
             <LineChart title="Top 10% Wealth Share" points={history.map(m => ({ day: m.day, value: m.top_10_wealth_share * 100 }))} />
+            <LineChart title="Political Pressure" points={history.map(m => ({ day: m.day, value: m.political_pressure * 100 }))} />
           </div>
         </article>
 
