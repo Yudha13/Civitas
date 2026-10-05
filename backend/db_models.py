@@ -72,6 +72,7 @@ class MetricRecord(Base):
     wealth_gini: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     top_10_wealth_share: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     political_pressure: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    environmental_disasters: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     simulation: Mapped[SimulationRecord] = relationship(back_populates="metrics")
 class EventRecord(Base):
     __tablename__ = "events"; __table_args__ = (Index("ix_events_simulation_day","simulation_id","day"),)
