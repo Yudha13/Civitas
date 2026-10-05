@@ -65,8 +65,8 @@
 
 ## Phase 6 — Advanced Systems
 
-Phase 6 begins with measurement-first social stratification. Inequality metrics are deterministic, persisted with metric history, and exposed in the dashboard before inequality is allowed to influence agent behavior. The first behavior effect is now bounded and deterministic: higher wealth inequality reduces trust during social interactions.
-- [ ] Politics
+Phase 6 begins with measurement-first social stratification. Inequality metrics are deterministic, persisted with metric history, and exposed in the dashboard before inequality is allowed to influence agent behavior. The first behavior effect is now bounded and deterministic: higher wealth inequality reduces trust during social interactions. Political pressure is also derived deterministically from wealth inequality and applies a bounded penalty to faction cohesion.
+- [x] Politics: bounded political pressure metric and faction cohesion response
 - [x] Factions: emergent formation
 - [x] Faction dynamics: membership cleanup and leader succession
 - [x] Inequality measurement: wealth Gini and top-10% wealth share
