@@ -304,6 +304,10 @@ def test_relationship_validation_rejects_invalid_pair():
 def test_faction_forms_from_repeated_high_trust_relationships():
     simulation = Simulation(seed=10, population=9)
     simulation.SOCIAL_INTERACTION_PROBABILITY = 0.0
+    for agent in simulation.world.agents.values():
+        agent.age = 0.0
+    for agent in simulation.world.agents.values():
+        agent.age = 0.0
     village = simulation.world.villages[1]
     ids = sorted(village.agents[:3])
     for index, first_id in enumerate(ids):
@@ -382,6 +386,35 @@ def test_faction_replaces_dead_leader_deterministically():
     assert simulation.world.agents[ids[0]].faction_id is None
     assert any(event.type == EventType.FACTION_LEADER_CHANGED for event in simulation.world.events)
     simulation.world.validate()
+
+
+def test_political_pressure_tracks_inequality_and_reduces_faction_cohesion():
+    simulation = Simulation(seed=21, population=6)
+    simulation.SOCIAL_INTERACTION_PROBABILITY = 0.0
+    for agent in simulation.world.agents.values():
+        agent.age = 0.0
+
+    village = simulation.world.villages[1]
+    ids = sorted(village.agents)
+    for agent_id, value in zip(ids, [1.0, 1.0, 1.0, 1.0, 1.0, 10.0]):
+        simulation.world.agents[agent_id].wealth = value
+
+    relationship = Relationship(ids[0], ids[1], trust=80.0, interactions=4)
+    simulation.world.relationships[(ids[0], ids[1])] = relationship
+    faction = Faction(1, "Faction 1", ids[0], ids[:2])
+    simulation.world.factions[1] = faction
+    simulation.world.agents[ids[0]].faction_id = 1
+    simulation.world.agents[ids[1]].faction_id = 1
+
+    simulation.tick()
+
+    metrics = simulation.metrics()
+    assert metrics.political_pressure == metrics.wealth_gini
+    assert metrics.political_pressure > 0.0
+    assert faction.cohesion == max(
+        0.0,
+        80.0 - metrics.political_pressure * simulation.FACTION_POLITICAL_PRESSURE_PENALTY,
+    )
 
 
 def test_faction_dynamics_are_seeded_and_reproducible():
