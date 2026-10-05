@@ -466,3 +466,32 @@ def test_environmental_disasters_are_seeded_and_reproducible():
 
     assert first.world.events == second.world.events
     assert first.metrics_history == second.metrics_history
+
+
+def test_war_is_bounded_recorded_and_seeded():
+    first = Simulation(seed=41, population=12)
+    second = Simulation(seed=41, population=12)
+    for simulation in (first, second):
+        simulation.WAR_PROBABILITY = 1.0
+        simulation.SOCIAL_INTERACTION_PROBABILITY = 0.0
+        first_ids = sorted(simulation.world.villages[1].agents)
+        second_ids = sorted(simulation.world.villages[2].agents)
+        simulation.world.factions[1] = Faction(1, "Faction 1", first_ids[0], first_ids[:4], cohesion=70.0)
+        simulation.world.factions[2] = Faction(2, "Faction 2", second_ids[0], second_ids[:4], cohesion=60.0)
+        for agent_id in first_ids[:4]:
+            simulation.world.agents[agent_id].faction_id = 1
+        for agent_id in second_ids[:4]:
+            simulation.world.agents[agent_id].faction_id = 2
+
+    first._war_phase()
+    second._war_phase()
+
+    assert first.world.events == second.world.events
+    assert first.metrics() == second.metrics()
+    assert first.metrics().wars == 1
+    assert first.metrics().war_casualties >= 1
+    assert first.metrics().war_casualties <= 4
+    assert any(event.type == EventType.WAR_STARTED for event in first.world.events)
+    assert any(event.type == EventType.WAR_RESOLVED for event in first.world.events)
+    assert all(agent.health >= 0 for agent in first.world.agents.values())
+    first.world.validate()
