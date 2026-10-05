@@ -26,6 +26,7 @@ class EventType(str, Enum):
     FACTION_FORMED = "faction_formed"
     FACTION_JOINED = "faction_joined"
     FACTION_LEADER_CHANGED = "faction_leader_changed"
+    ENVIRONMENTAL_DISASTER = "environmental_disaster"
 
 
 @dataclass(frozen=True)
