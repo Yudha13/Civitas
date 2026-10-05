@@ -32,6 +32,7 @@ class Metrics:
     wealth_gini: float
     top_10_wealth_share: float
     political_pressure: float
+    environmental_disasters: int
 
 
 class Simulation:
@@ -56,6 +57,11 @@ class Simulation:
     FACTION_MIN_INTERACTIONS = 3
     FACTION_MIN_SIZE = 3
     FACTION_POLITICAL_PRESSURE_PENALTY = 10.0
+    ENVIRONMENTAL_DISASTER_PROBABILITY = 0.02
+    ENVIRONMENTAL_RESOURCE_LOSS_MIN = 0.15
+    ENVIRONMENTAL_RESOURCE_LOSS_MAX = 0.35
+    ENVIRONMENTAL_HEALTH_DAMAGE_MIN = 2.0
+    ENVIRONMENTAL_HEALTH_DAMAGE_MAX = 8.0
     VALIDATION_INTERVAL = 30
 
     def __init__(self, seed: int = 1, population: int = 100) -> None:
@@ -71,6 +77,7 @@ class Simulation:
         self._daily_migrations = 0
         self._daily_social_interactions = 0
         self._daily_conflicts = 0
+        self._daily_environmental_disasters = 0
         self.world.validate()
         self.metrics_history: list[Metrics] = [self.metrics()]
 
@@ -102,8 +109,10 @@ class Simulation:
         self._daily_migrations = 0
         self._daily_social_interactions = 0
         self._daily_conflicts = 0
+        self._daily_environmental_disasters = 0
         self._emit(EventType.DAY_STARTED, f"Day {self.world.day} started")
 
+        self._environmental_disaster_phase()
         self._production_phase()
         self._economy_phase()
         self._trade_phase()
@@ -162,6 +171,7 @@ class Simulation:
             wealth_gini=self._wealth_gini(living),
             top_10_wealth_share=self._top_10_wealth_share(living),
             political_pressure=self._political_pressure(living),
+            environmental_disasters=self._daily_environmental_disasters,
         )
 
     @staticmethod
@@ -192,6 +202,42 @@ class Simulation:
 
     def _is_working_age(self, agent: Agent) -> bool:
         return agent.age >= self.WORKING_AGE
+
+    def _environmental_disaster_phase(self) -> None:
+        """Apply rare, bounded environmental shocks to one village."""
+        if self.rng.random() >= self.ENVIRONMENTAL_DISASTER_PROBABILITY:
+            return
+
+        village = self.rng.choice(list(self.world.villages.values()))
+        disaster = self.rng.choice(("drought", "flood", "wildfire"))
+        loss = self.rng.uniform(self.ENVIRONMENTAL_RESOURCE_LOSS_MIN, self.ENVIRONMENTAL_RESOURCE_LOSS_MAX)
+        health_damage = self.rng.uniform(self.ENVIRONMENTAL_HEALTH_DAMAGE_MIN, self.ENVIRONMENTAL_HEALTH_DAMAGE_MAX)
+
+        resources = village.resources
+        if disaster == "drought":
+            resources.food *= 1.0 - loss
+        elif disaster == "flood":
+            resources.food *= 1.0 - loss
+            resources.wood *= 1.0 - loss * 0.5
+        else:
+            resources.food *= 1.0 - loss * 0.5
+            resources.wood *= 1.0 - loss
+
+        affected = 0
+        for agent_id in village.agents:
+            agent = self.world.agents[agent_id]
+            if not agent.alive:
+                continue
+            agent.health = max(0.0, agent.health - health_damage)
+            affected += 1
+
+        self._daily_environmental_disasters += 1
+        self._emit(
+            EventType.ENVIRONMENTAL_DISASTER,
+            f"{disaster.capitalize()} struck {village.name}: resources -{loss * 100:.1f}%, {affected} agents affected",
+            village_id=village.id,
+            amount=loss,
+        )
 
     def _production_phase(self) -> None:
         for village in self.world.villages.values():
