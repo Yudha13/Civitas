@@ -429,3 +429,40 @@ def test_faction_dynamics_are_seeded_and_reproducible():
     assert first.world.factions == second.world.factions
     assert first.world.events == second.world.events
     assert first.metrics_history == second.metrics_history
+
+
+def test_environmental_disaster_is_bounded_and_recorded():
+    simulation = Simulation(seed=31, population=6)
+    simulation.ENVIRONMENTAL_DISASTER_PROBABILITY = 1.0
+    simulation.ENVIRONMENTAL_RESOURCE_LOSS_MIN = 0.2
+    simulation.ENVIRONMENTAL_RESOURCE_LOSS_MAX = 0.2
+    simulation.ENVIRONMENTAL_HEALTH_DAMAGE_MIN = 5.0
+    simulation.ENVIRONMENTAL_HEALTH_DAMAGE_MAX = 5.0
+
+    village = simulation.world.villages[1]
+    initial_food = village.resources.food
+    initial_wood = village.resources.wood
+    initial_health = [simulation.world.agents[agent_id].health for agent_id in village.agents]
+
+    simulation.tick()
+
+    disasters = [event for event in simulation.world.events if event.type == EventType.ENVIRONMENTAL_DISASTER]
+    assert len(disasters) == 1
+    assert simulation.metrics().environmental_disasters == 1
+    assert village.resources.food < initial_food or village.resources.wood < initial_wood
+    for agent_id, health in zip(village.agents, initial_health):
+        assert simulation.world.agents[agent_id].health == max(0.0, health - 5.0)
+    simulation.world.validate()
+
+
+def test_environmental_disasters_are_seeded_and_reproducible():
+    first = Simulation(seed=77, population=30)
+    second = Simulation(seed=77, population=30)
+    first.ENVIRONMENTAL_DISASTER_PROBABILITY = 0.2
+    second.ENVIRONMENTAL_DISASTER_PROBABILITY = 0.2
+
+    first.run(60)
+    second.run(60)
+
+    assert first.world.events == second.world.events
+    assert first.metrics_history == second.metrics_history
