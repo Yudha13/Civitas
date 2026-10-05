@@ -177,6 +177,8 @@ function App() {
         <Metric label="Factions" value={metrics.faction_count} />
         <Metric label="Political Pressure" value={(metrics.political_pressure * 100).toFixed(1) + "%"} />
         <Metric label="Disasters" value={metrics.environmental_disasters} />
+            <Metric label="Wars" value={metrics.wars} />
+            <Metric label="War Casualties" value={metrics.war_casualties} />
       </section>
 
       <section className="dashboard-grid">
@@ -200,6 +202,8 @@ function App() {
             <LineChart title="Top 10% Wealth Share" points={history.map(m => ({ day: m.day, value: m.top_10_wealth_share * 100 }))} />
             <LineChart title="Political Pressure" points={history.map(m => ({ day: m.day, value: m.political_pressure * 100 }))} />
             <LineChart title="Environmental Disasters" points={history.map(m => ({ day: m.day, value: m.environmental_disasters }))} />
+        <LineChart title="Wars" points={history.map(m => ({ day: m.day, value: m.wars }))} />
+        <LineChart title="War Casualties" points={history.map(m => ({ day: m.day, value: m.war_casualties }))} />
           </div>
         </article>
 
