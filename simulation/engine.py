@@ -65,6 +65,12 @@ class Simulation:
     ENVIRONMENTAL_HEALTH_DAMAGE_MIN = 2.0
     ENVIRONMENTAL_HEALTH_DAMAGE_MAX = 8.0
     WAR_PROBABILITY = 0.01
+    WAR_BASE_HOSTILITY = 0.20
+    WAR_POLITICAL_PRESSURE_WEIGHT = 0.25
+    WAR_SCARCITY_WEIGHT = 0.25
+    WAR_COHESION_WEIGHT = 0.15
+    WAR_CONFLICT_WEIGHT = 0.15
+    WAR_RESOURCE_TARGET_PER_AGENT = 2.0
     WAR_RESOURCE_LOSS_MIN = 0.05
     WAR_RESOURCE_LOSS_MAX = 0.15
     WAR_CASUALTY_RATE_MIN = 0.05
@@ -253,16 +259,78 @@ class Simulation:
             amount=loss,
         )
 
+    def _faction_war_hostility(self, first: Faction, second: Faction) -> float:
+        """Return a bounded hostility score derived from current world pressure."""
+        living = [agent for agent in self.world.agents.values() if agent.alive]
+        political_pressure = self._political_pressure(living)
+
+        faction_members = {
+            first.id: [self.world.agents[member_id] for member_id in first.members if self.world.agents[member_id].alive],
+            second.id: [self.world.agents[member_id] for member_id in second.members if self.world.agents[member_id].alive],
+        }
+        scarcity_values = []
+        for members in faction_members.values():
+            by_village = {}
+            for agent in members:
+                by_village.setdefault(agent.village_id, []).append(agent)
+            for village_id, village_members in by_village.items():
+                village = self.world.villages[village_id]
+                food_per_agent = village.resources.food / max(len(village_members), 1)
+                scarcity_values.append(
+                    max(
+                        0.0,
+                        min(
+                            1.0,
+                            1.0 - food_per_agent / self.WAR_RESOURCE_TARGET_PER_AGENT,
+                        ),
+                    )
+                )
+        scarcity = sum(scarcity_values) / len(scarcity_values) if scarcity_values else 0.0
+        low_cohesion = 1.0 - (
+            (max(0.0, min(100.0, first.cohesion)) + max(0.0, min(100.0, second.cohesion)))
+            / 200.0
+        )
+
+        first_members = set(faction.members)
+        second_members = set(second.members)
+        cross_faction = [
+            relationship
+            for relationship in self.world.relationships.values()
+            if (
+                (relationship.agent_a in first_members and relationship.agent_b in second_members)
+                or (relationship.agent_a in second_members and relationship.agent_b in first_members)
+            )
+        ]
+        conflict = (
+            sum(1.0 - max(0.0, min(100.0, relationship.trust)) / 100.0 for relationship in cross_faction)
+            / len(cross_faction)
+            if cross_faction
+            else 0.0
+        )
+
+        hostility = (
+            self.WAR_BASE_HOSTILITY
+            + political_pressure * self.WAR_POLITICAL_PRESSURE_WEIGHT
+            + scarcity * self.WAR_SCARCITY_WEIGHT
+            + low_cohesion * self.WAR_COHESION_WEIGHT
+            + conflict * self.WAR_CONFLICT_WEIGHT
+        )
+        return max(0.0, min(1.0, hostility))
+
     def _war_phase(self) -> None:
-        """Resolve a rare, bounded war between two living factions."""
+        """Resolve a rare, bounded war when current conditions make conflict plausible."""
         factions = [
             faction for faction in self.world.factions.values()
             if sum(1 for member_id in faction.members if self.world.agents[member_id].alive) >= self.FACTION_MIN_SIZE
         ]
-        if len(factions) < 2 or self.rng.random() >= self.WAR_PROBABILITY:
+        if len(factions) < 2:
             return
 
         first, second = self.rng.sample(sorted(factions, key=lambda item: item.id), 2)
+        hostility = self._faction_war_hostility(first, second)
+        if self.rng.random() >= self.WAR_PROBABILITY * hostility:
+            return
+
         self._emit(EventType.WAR_STARTED, f"Faction {first.id} and Faction {second.id} entered war")
 
         def living_members(faction):
@@ -303,7 +371,11 @@ class Simulation:
 
         self._daily_wars += 1
         self._daily_war_casualties += casualties
-        self._emit(EventType.WAR_RESOLVED, f"Faction {winner.id} defeated Faction {loser.id}: {casualties} casualties, resources -{resource_loss * 100:.1f}%", amount=float(casualties))
+        self._emit(
+            EventType.WAR_RESOLVED,
+            f"Faction {winner.id} defeated Faction {loser.id}: {casualties} casualties, resources -{resource_loss * 100:.1f}%",
+            amount=float(casualties),
+        )
     def _production_phase(self) -> None:
         for village in self.world.villages.values():
             self._produce(village)
