@@ -248,6 +248,7 @@ class SimulationRepository:
                 average_faction_cohesion=row.average_faction_cohesion,
                 wealth_gini=row.wealth_gini,
                 top_10_wealth_share=row.top_10_wealth_share,
+                political_pressure=row.political_pressure,
             )
             for row in metric_records
         ]
