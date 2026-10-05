@@ -306,8 +306,6 @@ def test_faction_forms_from_repeated_high_trust_relationships():
     simulation.SOCIAL_INTERACTION_PROBABILITY = 0.0
     for agent in simulation.world.agents.values():
         agent.age = 0.0
-    for agent in simulation.world.agents.values():
-        agent.age = 0.0
     village = simulation.world.villages[1]
     ids = sorted(village.agents[:3])
     for index, first_id in enumerate(ids):
@@ -345,6 +343,8 @@ def test_faction_formation_is_seeded_and_reproducible():
 def test_faction_metrics_track_count_and_average_cohesion():
     simulation = Simulation(seed=3, population=9)
     simulation.SOCIAL_INTERACTION_PROBABILITY = 0.0
+    for agent in simulation.world.agents.values():
+        agent.age = 0.0
     village = simulation.world.villages[1]
     ids = sorted(village.agents[:3])
     for index, first_id in enumerate(ids):
