@@ -250,6 +250,8 @@ class SimulationRepository:
                 top_10_wealth_share=row.top_10_wealth_share,
                 political_pressure=row.political_pressure,
                 environmental_disasters=row.environmental_disasters,
+                wars=row.wars,
+                war_casualties=row.war_casualties,
             )
             for row in metric_records
         ]
