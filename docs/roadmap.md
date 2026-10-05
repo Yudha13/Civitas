@@ -72,7 +72,7 @@ Phase 6 begins with measurement-first social stratification. Inequality metrics 
 - [x] Inequality measurement: wealth Gini and top-10% wealth share
 - [x] Inequality social effect: bounded trust pressure during social interactions
 - [x] Environmental disasters: rare bounded resource and health shocks
-- [ ] War
+- [x] War: bounded faction conflict driven by political pressure, resource scarcity, cohesion, and cross-faction trust
 - [ ] Epidemics
 - [ ] Ideologies and belief systems
 
