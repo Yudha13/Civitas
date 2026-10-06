@@ -154,6 +154,8 @@ class SimulationRepository:
                 alive=row.alive,
                 fertility=row.fertility,
                 faction_id=row.faction_id,
+                disease_days=row.disease_days,
+                immune=row.immune,
             )
 
         village_orders = {row.village_id: row.agent_order for row in village_records}
@@ -252,6 +254,9 @@ class SimulationRepository:
                 environmental_disasters=row.environmental_disasters,
                 wars=row.wars,
                 war_casualties=row.war_casualties,
+                epidemics=row.epidemics,
+                epidemic_infections=row.epidemic_infections,
+                epidemic_deaths=row.epidemic_deaths,
             )
             for row in metric_records
         ]
@@ -298,6 +303,8 @@ class SimulationRepository:
                     alive=a.alive,
                     fertility=a.fertility,
                     faction_id=a.faction_id,
+                    disease_days=a.disease_days,
+                    immune=a.immune,
                 )
             )
 
