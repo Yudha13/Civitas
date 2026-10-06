@@ -19,7 +19,7 @@ from backend.db_models import (
     VillageRecord,
 )
 from simulation.engine import Metrics, Simulation
-from simulation.models import Agent, Event, EventType, Faction, Occupation, Relationship, Resources, Village, World
+from simulation.models import Agent, Event, EventType, Faction, Ideology, Occupation, Relationship, Resources, Village, World
 
 
 def _encode_rng_state(simulation: Simulation) -> str:
