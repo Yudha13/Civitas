@@ -156,6 +156,8 @@ class SimulationRepository:
                 faction_id=row.faction_id,
                 disease_days=row.disease_days,
                 immune=row.immune,
+                ideology=Ideology(row.ideology),
+                ideology_commitment=row.ideology_commitment,
             )
 
         village_orders = {row.village_id: row.agent_order for row in village_records}
@@ -257,6 +259,9 @@ class SimulationRepository:
                 epidemics=row.epidemics,
                 epidemic_infections=row.epidemic_infections,
                 epidemic_deaths=row.epidemic_deaths,
+                ideology_diversity=row.ideology_diversity,
+                dominant_ideology_share=row.dominant_ideology_share,
+                ideology_shifts=row.ideology_shifts,
             )
             for row in metric_records
         ]
