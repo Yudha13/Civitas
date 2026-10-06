@@ -3,8 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 type Village = { id: number; name: string; agents: number; food: number; wood: number; stone: number };
 type Faction = { id: number; name: string; leader_id: number; members: number[]; cohesion: number };
 type WorldState = { day: number; population: number; villages: Village[]; factions: Faction[] };
-type Agent = { id: number; age: number; health: number; hunger: number; wealth: number; trust: number; occupation: string; village_id: number; village_name: string; alive: boolean; fertility: number; faction_id: number | null; faction_name: string | null };
-type Metrics = { day: number; population: number; living_population: number; average_health: number; average_hunger: number; total_food: number; total_wood: number; total_stone: number; total_wealth: number; average_wealth: number; average_trust: number; trade_volume: number; births: number; deaths: number; migrations: number; social_interactions: number; conflicts: number; faction_count: number; average_faction_cohesion: number; wealth_gini: number; top_10_wealth_share: number; political_pressure: number; environmental_disasters: number; wars: number; war_casualties: number; epidemics: number; epidemic_infections: number; epidemic_deaths: number };
+type Agent = { id: number; age: number; health: number; hunger: number; wealth: number; trust: number; occupation: string; village_id: number; village_name: string; alive: boolean; fertility: number; faction_id: number | null; faction_name: string | null; ideology: string; ideology_commitment: number };
+type Metrics = { day: number; population: number; living_population: number; average_health: number; average_hunger: number; total_food: number; total_wood: number; total_stone: number; total_wealth: number; average_wealth: number; average_trust: number; trade_volume: number; births: number; deaths: number; migrations: number; social_interactions: number; conflicts: number; faction_count: number; average_faction_cohesion: number; wealth_gini: number; top_10_wealth_share: number; political_pressure: number; environmental_disasters: number; wars: number; war_casualties: number; epidemics: number; epidemic_infections: number; epidemic_deaths: number; ideology_diversity: number; dominant_ideology_share: number; ideology_shifts: number };
 type SimulationEvent = { type: string; day: number; message: string };
 type StreamMessage = { action: string; state: WorldState; metrics: Metrics };
 type ChartPoint = { day: number; value: number };
@@ -25,7 +25,7 @@ declare global {
 }
 
 const emptyState: WorldState = { day: 0, population: 0, villages: [], factions: [] };
-const emptyMetrics: Metrics = { day: 0, population: 0, living_population: 0, average_health: 0, average_hunger: 0, total_food: 0, total_wood: 0, total_stone: 0, total_wealth: 0, average_wealth: 0, average_trust: 0, trade_volume: 0, births: 0, deaths: 0, migrations: 0, social_interactions: 0, conflicts: 0, faction_count: 0, average_faction_cohesion: 0, wealth_gini: 0, top_10_wealth_share: 0, political_pressure: 0, environmental_disasters: 0, wars: 0, war_casualties: 0, epidemics: 0, epidemic_infections: 0, epidemic_deaths: 0 };
+const emptyMetrics: Metrics = { day: 0, population: 0, living_population: 0, average_health: 0, average_hunger: 0, total_food: 0, total_wood: 0, total_stone: 0, total_wealth: 0, average_wealth: 0, average_trust: 0, trade_volume: 0, births: 0, deaths: 0, migrations: 0, social_interactions: 0, conflicts: 0, faction_count: 0, average_faction_cohesion: 0, wealth_gini: 0, top_10_wealth_share: 0, political_pressure: 0, environmental_disasters: 0, wars: 0, war_casualties: 0, epidemics: 0, epidemic_infections: 0, epidemic_deaths: 0, ideology_diversity: 0, dominant_ideology_share: 0, ideology_shifts: 0 };
 
 function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -178,6 +178,9 @@ function App() {
         <Metric label="Political Pressure" value={(metrics.political_pressure * 100).toFixed(1) + "%"} />
         <Metric label="Disasters" value={metrics.environmental_disasters} />
             <Metric label="Wars" value={metrics.wars} />
+        <Metric label="Ideology Diversity" value={(metrics.ideology_diversity * 100).toFixed(0) + "%"} />
+        <Metric label="Dominant Ideology" value={(metrics.dominant_ideology_share * 100).toFixed(0) + "%"} />
+        <Metric label="Ideology Shifts" value={metrics.ideology_shifts} />
             <Metric label="War Casualties" value={metrics.war_casualties} />
         <Metric label="Epidemics" value={metrics.epidemics} />
         <Metric label="Infections" value={metrics.epidemic_infections} />
