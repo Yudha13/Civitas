@@ -526,3 +526,58 @@ def test_war_is_bounded_recorded_and_seeded():
     assert any(event.type == EventType.WAR_RESOLVED for event in first.world.events)
     assert all(agent.health >= 0 for agent in first.world.agents.values())
     first.world.validate()
+
+
+def test_epidemic_is_bounded_recorded_and_recoverable():
+    simulation = Simulation(seed=101, population=9)
+    simulation.EPIDEMIC_INTRODUCTION_PROBABILITY = 1.0
+    simulation.EPIDEMIC_HEALTH_DAMAGE = 1.0
+    simulation.SOCIAL_INTERACTION_PROBABILITY = 1.0
+    simulation.tick()
+
+    cases = [event for event in simulation.world.events if event.type == EventType.EPIDEMIC_STARTED]
+    assert cases
+    assert simulation.metrics().epidemics == 1
+    infected = [agent for agent in simulation.world.agents.values() if agent.disease_days > 0 or agent.immune]
+    assert infected
+    assert all(0 <= agent.health <= 100 for agent in simulation.world.agents.values())
+    simulation.world.validate()
+
+    simulation.EPIDEMIC_INTRODUCTION_PROBABILITY = 0.0
+    simulation.run(simulation.EPIDEMIC_DURATION_DAYS + 1)
+    assert any(event.type == EventType.EPIDEMIC_RECOVERED for event in simulation.world.events)
+    assert any(agent.immune for agent in simulation.world.agents.values())
+    simulation.world.validate()
+
+
+def test_epidemic_transmission_increases_with_local_contacts():
+    simulation = Simulation(seed=202, population=6)
+    simulation.SOCIAL_INTERACTION_PROBABILITY = 0.0
+    simulation.EPIDEMIC_INTRODUCTION_PROBABILITY = 0.0
+    simulation.EPIDEMIC_TRANSMISSION_PROBABILITY = 1.0
+    village = simulation.world.villages[1]
+    ids = sorted(village.agents)
+    for index, first_id in enumerate(ids):
+        for second_id in ids[index + 1:]:
+            simulation.world.relationships[(first_id, second_id)] = Relationship(
+                first_id, second_id, trust=70.0, interactions=3
+            )
+    simulation.world.agents[ids[0]].disease_days = simulation.EPIDEMIC_DURATION_DAYS
+    simulation._epidemic_phase()
+    assert sum(agent.disease_days > 0 for agent in simulation.world.agents.values()) >= 2
+    assert simulation.metrics().epidemic_infections >= 1
+    simulation.world.validate()
+
+
+def test_epidemics_are_seeded_and_reproducible():
+    first = Simulation(seed=303, population=30)
+    second = Simulation(seed=303, population=30)
+    first.EPIDEMIC_INTRODUCTION_PROBABILITY = 0.2
+    second.EPIDEMIC_INTRODUCTION_PROBABILITY = 0.2
+    first.SOCIAL_INTERACTION_PROBABILITY = 0.8
+    second.SOCIAL_INTERACTION_PROBABILITY = 0.8
+    first.run(60)
+    second.run(60)
+    assert first.world.events == second.world.events
+    assert first.metrics_history == second.metrics_history
+    assert all(agent.disease_days >= 0 for agent in first.world.agents.values())
