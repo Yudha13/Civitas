@@ -46,6 +46,8 @@ class AgentRecord(Base):
     age: Mapped[float] = mapped_column(Float, nullable=False); health: Mapped[float] = mapped_column(Float, nullable=False); hunger: Mapped[float] = mapped_column(Float, nullable=False)
     wealth: Mapped[float] = mapped_column(Float, nullable=False); trust: Mapped[float] = mapped_column(Float, nullable=False); occupation: Mapped[str] = mapped_column(String(32), nullable=False)
     alive: Mapped[bool] = mapped_column(Boolean, nullable=False); fertility: Mapped[float] = mapped_column(Float, nullable=False); faction_id: Mapped[int | None] = mapped_column(Integer)
+    disease_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    immune: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     simulation: Mapped[SimulationRecord] = relationship(back_populates="agents")
 class FactionRecord(Base):
     __tablename__ = "factions"; __table_args__ = (UniqueConstraint("simulation_id","faction_id",name="uq_faction_simulation_id"),)
