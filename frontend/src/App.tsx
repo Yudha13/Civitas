@@ -51,7 +51,8 @@ function App() {
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
   const [agentQuery, setAgentQuery] = useState("");
   const [selectedVillageId, setSelectedVillageId] = useState<number | null>(null);
-  const [events, setEvents] = useState<SimulationEvent[]>([]);\n  const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [events, setEvents] = useState<SimulationEvent[]>([]);
+  const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [days, setDays] = useState(10);
   const [connected, setConnected] = useState(false);
   const socketRef = useRef<WebSocket | null>(null);
