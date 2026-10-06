@@ -305,6 +305,8 @@ class SimulationRepository:
                     faction_id=a.faction_id,
                     disease_days=a.disease_days,
                     immune=a.immune,
+                    ideology=a.ideology.value,
+                    ideology_commitment=a.ideology_commitment,
                 )
             )
 
