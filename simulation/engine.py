@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from random import Random
 
-from .models import Agent, Event, EventType, Faction, Occupation, Relationship, Village, World
+from .models import Agent, Event, EventType, Faction, Ideology, Occupation, Relationship, Village, World
 
 
 @dataclass(frozen=True)
@@ -38,6 +38,9 @@ class Metrics:
     epidemics: int
     epidemic_infections: int
     epidemic_deaths: int
+    ideology_diversity: float
+    dominant_ideology_share: float
+    ideology_shifts: int
 
 
 class Simulation:
@@ -83,6 +86,11 @@ class Simulation:
     EPIDEMIC_DURATION_DAYS = 10
     EPIDEMIC_HEALTH_DAMAGE = 3.0
     EPIDEMIC_MORTALITY_THRESHOLD = 25.0
+    IDEOLOGY_COMMITMENT_STEP = 0.05
+    IDEOLOGY_SOCIAL_INFLUENCE = 0.35
+    IDEOLOGY_MAX_TRUST_EFFECT = 0.25
+    IDEOLOGY_MAX_COHESION_EFFECT = 0.50
+    IDEOLOGY_CONFLICT_WEIGHT = 0.10
     VALIDATION_INTERVAL = 30
 
     def __init__(self, seed: int = 1, population: int = 100) -> None:
@@ -104,6 +112,7 @@ class Simulation:
         self._daily_epidemics = 0
         self._daily_epidemic_infections = 0
         self._daily_epidemic_deaths = 0
+        self._daily_ideology_shifts = 0
         self.world.validate()
         self.metrics_history: list[Metrics] = [self.metrics()]
 
@@ -141,6 +150,7 @@ class Simulation:
         self._daily_epidemics = 0
         self._daily_epidemic_infections = 0
         self._daily_epidemic_deaths = 0
+        self._daily_ideology_shifts = 0
         self._emit(EventType.DAY_STARTED, f"Day {self.world.day} started")
 
         self._environmental_disaster_phase()
@@ -155,6 +165,7 @@ class Simulation:
         self._faction_dynamics_phase()
         self._war_phase()
         self._epidemic_phase()
+        self._ideology_phase()
         self._migration_phase()
 
         self._emit(
@@ -210,6 +221,9 @@ class Simulation:
             epidemics=self._daily_epidemics,
             epidemic_infections=self._daily_epidemic_infections,
             epidemic_deaths=self._daily_epidemic_deaths,
+            ideology_diversity=self._ideology_diversity(living),
+            dominant_ideology_share=self._dominant_ideology_share(living),
+            ideology_shifts=self._daily_ideology_shifts,
         )
 
     @staticmethod
@@ -237,6 +251,94 @@ class Simulation:
             return 0.0
         top_count = max(1, (len(wealth) + 9) // 10)
         return max(0.0, min(1.0, sum(wealth[:top_count]) / total))
+
+    @staticmethod
+    def _ideology_diversity(living: list[Agent]) -> float:
+        if not living:
+            return 0.0
+        return len({agent.ideology for agent in living}) / len(Ideology)
+
+    @staticmethod
+    def _dominant_ideology_share(living: list[Agent]) -> float:
+        if not living:
+            return 0.0
+        counts = {ideology: 0 for ideology in Ideology}
+        for agent in living:
+            counts[agent.ideology] += 1
+        return max(counts.values()) / len(living)
+
+    def _ideology_phase(self) -> None:
+        """Update beliefs from bounded world pressure and repeated social influence."""
+        living = [agent for agent in self.world.agents.values() if agent.alive]
+        if not living:
+            return
+        inequality = self._political_pressure(living)
+        labels = {
+            Ideology.COMMUNAL: 0.0,
+            Ideology.TRADITIONAL: 0.0,
+            Ideology.INDIVIDUALIST: 0.0,
+            Ideology.EXPANSIONIST: 0.0,
+        }
+        for agent in living:
+            village = self.world.villages[agent.village_id]
+            local = [self.world.agents[agent_id] for agent_id in village.agents if self.world.agents[agent_id].alive]
+            scarcity = max(0.0, min(1.0, 1.0 - village.resources.food / max(len(local) * self.WAR_RESOURCE_TARGET_PER_AGENT, 1.0)))
+            faction_cohesion = 0.0
+            if agent.faction_id is not None and agent.faction_id in self.world.factions:
+                faction_cohesion = max(0.0, min(1.0, self.world.factions[agent.faction_id].cohesion / 100.0))
+            peer_counts = {ideology: 0 for ideology in Ideology}
+            for peer in local:
+                if peer.id != agent.id:
+                    peer_counts[peer.ideology] += 1
+            peer_total = sum(peer_counts.values())
+            peer_affinity = {
+                ideology: (peer_counts[ideology] / peer_total if peer_total else 0.25)
+                for ideology in Ideology
+            }
+            scores = {
+                Ideology.COMMUNAL: 0.30 * scarcity + 0.20 * (1.0 - inequality) + 0.15 * faction_cohesion + self.IDEOLOGY_SOCIAL_INFLUENCE * peer_affinity[Ideology.COMMUNAL],
+                Ideology.TRADITIONAL: 0.30 * faction_cohesion + 0.20 * (agent.trust / 100.0) + 0.15 * (1.0 - scarcity) + self.IDEOLOGY_SOCIAL_INFLUENCE * peer_affinity[Ideology.TRADITIONAL],
+                Ideology.INDIVIDUALIST: 0.30 * inequality + 0.20 * (agent.wealth / max(agent.wealth + 10.0, 10.0)) + 0.15 * (1.0 - agent.trust / 100.0) + self.IDEOLOGY_SOCIAL_INFLUENCE * peer_affinity[Ideology.INDIVIDUALIST],
+                Ideology.EXPANSIONIST: 0.30 * scarcity + 0.20 * inequality + 0.15 * (1.0 - faction_cohesion) + self.IDEOLOGY_SOCIAL_INFLUENCE * peer_affinity[Ideology.EXPANSIONIST],
+            }
+            current_score = scores[agent.ideology] + agent.ideology_commitment * 0.25
+            best = max(Ideology, key=lambda ideology: (scores[ideology], ideology.value))
+            if scores[best] > current_score + 0.10:
+                previous = agent.ideology
+                agent.ideology = best
+                agent.ideology_commitment = min(1.0, agent.ideology_commitment + self.IDEOLOGY_COMMITMENT_STEP)
+                self._daily_ideology_shifts += 1
+                self._emit(
+                    EventType.IDEOLOGY_SHIFTED,
+                    f"Agent {agent.id} shifted ideology from {previous.value} to {best.value}",
+                    agent_id=agent.id,
+                    village_id=agent.village_id,
+                    amount=agent.ideology_commitment,
+                )
+            else:
+                agent.ideology_commitment = min(1.0, agent.ideology_commitment + self.IDEOLOGY_COMMITMENT_STEP * 0.25)
+
+        for relationship in self.world.relationships.values():
+            first = self.world.agents[relationship.agent_a]
+            second = self.world.agents[relationship.agent_b]
+            if not first.alive or not second.alive or relationship.interactions <= 0:
+                continue
+            affinity = 1.0 if first.ideology == second.ideology else -0.5
+            effect = max(-self.IDEOLOGY_MAX_TRUST_EFFECT, min(self.IDEOLOGY_MAX_TRUST_EFFECT, affinity * 0.05 * min(first.ideology_commitment, second.ideology_commitment)))
+            relationship.trust = max(0.0, min(100.0, relationship.trust + effect))
+
+        for faction in self.world.factions.values():
+            members = [self.world.agents[mid] for mid in faction.members if self.world.agents[mid].alive]
+            if not members:
+                continue
+            cohesion_bonus = sum(
+                (agent.ideology == self.world.agents[faction.leader_id].ideology) * min(agent.ideology_commitment, 1.0)
+                for agent in members
+            ) / len(members)
+            faction.cohesion = max(
+                0.0,
+                min(100.0, faction.cohesion + (cohesion_bonus - 0.5) * self.IDEOLOGY_MAX_COHESION_EFFECT),
+            )
 
     def _is_working_age(self, agent: Agent) -> bool:
         return agent.age >= self.WORKING_AGE
@@ -325,6 +427,12 @@ class Simulation:
             if cross_faction
             else 0.0
         )
+        ideological_conflict = 0.0
+        if first_members and second_members:
+            ideological_conflict = sum(
+                1.0 - (self.world.agents[a].ideology == self.world.agents[b].ideology)
+                for a in first_members for b in second_members
+            ) / (len(first_members) * len(second_members))
 
         hostility = (
             self.WAR_BASE_HOSTILITY
@@ -332,6 +440,7 @@ class Simulation:
             + scarcity * self.WAR_SCARCITY_WEIGHT
             + low_cohesion * self.WAR_COHESION_WEIGHT
             + conflict * self.WAR_CONFLICT_WEIGHT
+            + ideological_conflict * self.IDEOLOGY_CONFLICT_WEIGHT
         )
         return max(0.0, min(1.0, hostility))
 
