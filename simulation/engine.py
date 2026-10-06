@@ -627,7 +627,7 @@ class Simulation:
             if self.rng.random() >= self.BIRTH_PROBABILITY * parent.fertility:
                 continue
             village = self.world.villages[parent.village_id]
-            child = Agent(id=next_id, age=0.0, health=100.0, hunger=0.0, wealth=parent.wealth * 0.25, trust=parent.trust, occupation=Occupation.FARMER, village_id=parent.village_id, alive=True, fertility=parent.fertility)
+            child = Agent(id=next_id, age=1 / 365, health=100.0, hunger=0.0, wealth=parent.wealth * 0.25, trust=parent.trust, occupation=Occupation.FARMER, village_id=parent.village_id, alive=True, fertility=parent.fertility)
             parent.wealth *= 0.75
             self.world.agents[next_id] = child
             village.agents.append(next_id)
