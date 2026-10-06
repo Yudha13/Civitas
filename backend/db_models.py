@@ -75,6 +75,9 @@ class MetricRecord(Base):
     environmental_disasters: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     wars: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     war_casualties: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    epidemics: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    epidemic_infections: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    epidemic_deaths: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     simulation: Mapped[SimulationRecord] = relationship(back_populates="metrics")
 class EventRecord(Base):
     __tablename__ = "events"; __table_args__ = (Index("ix_events_simulation_day","simulation_id","day"),)
