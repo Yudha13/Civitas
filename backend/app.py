@@ -9,6 +9,7 @@ from backend.database import SessionLocal, get_session
 from backend.repository import SimulationRepository
 from sqlalchemy.orm import Session
 from backend.auth import require_user, verify_google_credential
+from backend.analytics import analyze_metrics
 
 app = FastAPI(title="CIVITAS API", version="0.2.0")
 
@@ -148,6 +149,15 @@ def metrics_history(request: Request, limit: int = 365) -> list[dict]:
     if limit < 1 or limit > 5000:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 5000")
     return [snapshot.__dict__ for snapshot in sim.metrics_history[-limit:]]
+
+@app.get("/simulation/analysis")
+def analysis(request: Request, limit: int = 365) -> dict:
+    user = require_user(request)
+    sim = active_simulations.get(int(user["user_id"])) or simulation
+    if limit < 1 or limit > 5000:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 5000")
+    return analyze_metrics(sim.metrics_history[-limit:])
+
 
 @app.get("/simulation/agents")
 def agents(request: Request, limit: int = 200) -> list[dict]:
