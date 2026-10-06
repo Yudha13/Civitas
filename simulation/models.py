@@ -136,6 +136,8 @@ class World:
                 raise ValueError(f"Agent {agent.id} has negative wealth.")
             if agent.fertility < 0:
                 raise ValueError(f"Agent {agent.id} has negative fertility.")
+            if agent.disease_days < 0:
+                raise ValueError(f"Agent {agent.id} has negative disease duration.")
             if agent.village_id not in self.villages:
                 raise ValueError(f"Agent {agent.id} references an unknown village.")
             if agent.id not in self.villages[agent.village_id].agents:
