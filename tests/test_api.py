@@ -187,3 +187,24 @@ def test_load_simulation_isolation(authenticated_client, monkeypatch):
 
     response = other.post(f"/simulations/{saved['id']}/load")
     assert response.status_code == 404
+
+
+
+def test_historical_analysis_endpoint_summarizes_metric_window(authenticated_client):
+    authenticated_client.post("/simulation/start", json={"seed": 42, "population": 30})
+    authenticated_client.post("/simulation/run", json={"days": 5})
+    response = authenticated_client.get("/simulation/analysis?limit=4")
+    assert response.status_code == 200
+    analysis = response.json()
+    assert analysis["start_day"] == 2
+    assert analysis["end_day"] == 5
+    assert analysis["days"] == 3
+    assert analysis["population"]["start"] >= 0
+    assert "births" in analysis["events"]
+    assert "population" in analysis["peaks"]
+    assert "population" in analysis["troughs"]
+
+
+def test_historical_analysis_limit_is_validated(authenticated_client):
+    response = authenticated_client.get("/simulation/analysis?limit=0")
+    assert response.status_code == 400
