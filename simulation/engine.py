@@ -138,6 +138,9 @@ class Simulation:
         self._daily_environmental_disasters = 0
         self._daily_wars = 0
         self._daily_war_casualties = 0
+        self._daily_epidemics = 0
+        self._daily_epidemic_infections = 0
+        self._daily_epidemic_deaths = 0
         self._emit(EventType.DAY_STARTED, f"Day {self.world.day} started")
 
         self._environmental_disaster_phase()
@@ -306,7 +309,7 @@ class Simulation:
             / 200.0
         )
 
-        first_members = set(faction.members)
+        first_members = set(first.members)
         second_members = set(second.members)
         cross_faction = [
             relationship
