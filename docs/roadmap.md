@@ -80,6 +80,16 @@ Phase 6 begins with measurement-first social stratification. Inequality metrics 
 - [x] Ideology events, metrics, persistence, API, and dashboard
 - [x] Seeded ideology regression tests
 
+## Stage 10 — Historical Analysis & Integration
+
+- [x] Deterministic historical analysis layer
+- [x] Bounded metric-window summary API
+- [x] Population, resource, trust, and inequality deltas
+- [x] Peak/trough detection
+- [x] Historical event aggregation
+- [x] Dashboard historical summary integration
+- [x] Stage 10 analysis documentation
+
 ## Long-Term
 
 CIVITAS should remain a sandbox rather than becoming a scripted strategy game. Emergent behavior is the primary feature.
