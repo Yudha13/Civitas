@@ -1,6 +1,5 @@
 """Historical analysis helpers for CIVITAS metric snapshots."""
 
-from dataclasses import asdict
 from typing import Iterable
 
 from simulation.engine import Metrics
