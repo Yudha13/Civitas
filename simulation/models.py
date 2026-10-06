@@ -4,6 +4,13 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 
+class Ideology(str, Enum):
+    COMMUNAL = "communal"
+    TRADITIONAL = "traditional"
+    INDIVIDUALIST = "individualist"
+    EXPANSIONIST = "expansionist"
+
+
 class Occupation(str, Enum):
     FARMER = "farmer"
     HUNTER = "hunter"
@@ -32,6 +39,7 @@ class EventType(str, Enum):
     EPIDEMIC_STARTED = "epidemic_started"
     EPIDEMIC_CASE = "epidemic_case"
     EPIDEMIC_RECOVERED = "epidemic_recovered"
+    IDEOLOGY_SHIFTED = "ideology_shifted"
 
 
 @dataclass(frozen=True)
@@ -82,6 +90,8 @@ class Agent:
     faction_id: int | None = None
     disease_days: int = 0
     immune: bool = False
+    ideology: Ideology = Ideology.TRADITIONAL
+    ideology_commitment: float = 0.25
 
 
 @dataclass
@@ -138,6 +148,10 @@ class World:
                 raise ValueError(f"Agent {agent.id} has negative fertility.")
             if agent.disease_days < 0:
                 raise ValueError(f"Agent {agent.id} has negative disease duration.")
+            if not isinstance(agent.ideology, Ideology):
+                raise ValueError(f"Agent {agent.id} has invalid ideology.")
+            if agent.ideology_commitment < 0 or agent.ideology_commitment > 1:
+                raise ValueError(f"Agent {agent.id} has invalid ideology commitment.")
             if agent.village_id not in self.villages:
                 raise ValueError(f"Agent {agent.id} references an unknown village.")
             if agent.id not in self.villages[agent.village_id].agents:
