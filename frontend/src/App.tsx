@@ -213,6 +213,9 @@ function App() {
             <LineChart title="Epidemics" points={history.map(m => ({ day: m.day, value: m.epidemics }))} />
             <LineChart title="Epidemic Infections" points={history.map(m => ({ day: m.day, value: m.epidemic_infections }))} />
             <LineChart title="Epidemic Deaths" points={history.map(m => ({ day: m.day, value: m.epidemic_deaths }))} />
+            <LineChart title="Ideology Diversity" points={history.map(m => ({ day: m.day, value: m.ideology_diversity * 100 }))} />
+            <LineChart title="Dominant Ideology Share" points={history.map(m => ({ day: m.day, value: m.dominant_ideology_share * 100 }))} />
+            <LineChart title="Ideology Shifts" points={history.map(m => ({ day: m.day, value: m.ideology_shifts }))} />
           </div>
         </article>
 
@@ -240,7 +243,7 @@ function App() {
             <div className="agent-detail">{!selectedAgent ? <p className="empty">Select an agent to inspect its current state.</p> : <>
               <div className="detail-heading"><div><span className="label">AGENT #{selectedAgent.id}</span><h3>{selectedAgent.occupation}</h3></div><span className={"alive-pill " + (selectedAgent.alive ? "alive" : "dead")}>{selectedAgent.alive ? "ALIVE" : "DEAD"}</span></div>
               <div className="detail-grid">
-                <Detail label="Age" value={selectedAgent.age.toFixed(1)} /><Detail label="Health" value={selectedAgent.health.toFixed(1)} /><Detail label="Hunger" value={selectedAgent.hunger.toFixed(1)} /><Detail label="Wealth" value={selectedAgent.wealth.toFixed(1)} /><Detail label="Trust" value={selectedAgent.trust.toFixed(1)} /><Detail label="Fertility" value={selectedAgent.fertility.toFixed(2)} /><Detail label="Village" value={selectedAgent.village_name} /><Detail label="Faction" value={selectedAgent.faction_name ?? "None"} />
+                <Detail label="Age" value={selectedAgent.age.toFixed(1)} /><Detail label="Health" value={selectedAgent.health.toFixed(1)} /><Detail label="Hunger" value={selectedAgent.hunger.toFixed(1)} /><Detail label="Wealth" value={selectedAgent.wealth.toFixed(1)} /><Detail label="Trust" value={selectedAgent.trust.toFixed(1)} /><Detail label="Fertility" value={selectedAgent.fertility.toFixed(2)} /><Detail label="Village" value={selectedAgent.village_name} /><Detail label="Faction" value={selectedAgent.faction_name ?? "None"} /><Detail label="Ideology" value={selectedAgent.ideology} /><Detail label="Commitment" value={(selectedAgent.ideology_commitment * 100).toFixed(0) + "%"} />
               </div>
             </>}</div>
           </div>
