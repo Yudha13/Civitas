@@ -70,7 +70,7 @@ def _agent_state(agent_id: int, sim: Simulation | None = None) -> dict:
             "wealth": agent.wealth, "trust": agent.trust, "occupation": agent.occupation.value,
             "village_id": agent.village_id, "village_name": village.name, "alive": agent.alive,
             "fertility": agent.fertility, "faction_id": agent.faction_id,
-            "faction_name": faction.name if faction else None}
+            "faction_name": faction.name if faction else None, "ideology": agent.ideology.value, "ideology_commitment": agent.ideology_commitment}
 
 @app.get("/health")
 def health() -> dict:
