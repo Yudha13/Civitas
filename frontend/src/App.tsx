@@ -8,6 +8,19 @@ type Metrics = { day: number; population: number; living_population: number; ave
 type SimulationEvent = { type: string; day: number; message: string };
 type StreamMessage = { action: string; state: WorldState; metrics: Metrics };
 type ChartPoint = { day: number; value: number };
+type Analysis = {
+  start_day: number | null;
+  end_day: number | null;
+  days: number;
+  population: { start: number; end: number; change: number };
+  wealth: { start: number; end: number; change: number };
+  food: { start: number; end: number; change: number };
+  trust: { start: number; end: number; change: number };
+  wealth_gini: { start: number; end: number; change: number };
+  events: { births: number; deaths: number; migrations: number; conflicts: number; disasters: number; wars: number; war_casualties: number; epidemics: number; epidemic_infections: number; epidemic_deaths: number; ideology_shifts: number };
+  peaks: Record<string, { day: number; value: number }>;
+  troughs: Record<string, { day: number; value: number }>;
+};
 type AuthUser = { subject: string; email: string | null; name: string | null; picture: string | null };
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
@@ -38,7 +51,7 @@ function App() {
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
   const [agentQuery, setAgentQuery] = useState("");
   const [selectedVillageId, setSelectedVillageId] = useState<number | null>(null);
-  const [events, setEvents] = useState<SimulationEvent[]>([]);
+  const [events, setEvents] = useState<SimulationEvent[]>([]);\n  const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [days, setDays] = useState(10);
   const [connected, setConnected] = useState(false);
   const socketRef = useRef<WebSocket | null>(null);
@@ -56,6 +69,11 @@ function App() {
   const loadAgents = useCallback(async () => {
     const response = await fetchApi("/simulation/agents?limit=500");
     if (response.ok) setAgents(await response.json());
+  }, []);
+
+  const loadAnalysis = useCallback(async () => {
+    const response = await fetchApi("/simulation/analysis?limit=365");
+    if (response.ok) setAnalysis(await response.json());
   }, []);
 
   const loadHistory = useCallback(async () => {
@@ -220,6 +238,27 @@ function App() {
         </article>
 
         <article className="panel wide">
+          <div className="section-heading"><div><span className="label">ANALYSIS</span><h2>Historical Summary</h2></div><span className="muted">{analysis?.start_day ?? "—"} → {analysis?.end_day ?? "—"}</span></div>
+          {!analysis || analysis.days === 0 ? <p className="empty">Run the simulation to build a historical analysis window.</p> : <div className="detail-grid analysis-grid">
+            <Detail label="Population Change" value={formatSigned(analysis.population.change)} />
+            <Detail label="Wealth Change" value={formatSigned(analysis.wealth.change, 1)} />
+            <Detail label="Food Change" value={formatSigned(analysis.food.change, 1)} />
+            <Detail label="Trust Change" value={formatSigned(analysis.trust.change, 1)} />
+            <Detail label="Gini Change" value={formatSigned(analysis.wealth_gini.change, 3)} />
+            <Detail label="Births" value={String(analysis.events.births)} />
+            <Detail label="Deaths" value={String(analysis.events.deaths)} />
+            <Detail label="Migrations" value={String(analysis.events.migrations)} />
+            <Detail label="Wars" value={String(analysis.events.wars)} />
+            <Detail label="War Casualties" value={String(analysis.events.war_casualties)} />
+            <Detail label="Epidemics" value={String(analysis.events.epidemics)} />
+            <Detail label="Epidemic Deaths" value={String(analysis.events.epidemic_deaths)} />
+            <Detail label="Ideology Shifts" value={String(analysis.events.ideology_shifts)} />
+            <Detail label="Peak Population Day" value={String(analysis.peaks.population?.day ?? "—")} />
+            <Detail label="Lowest Population Day" value={String(analysis.troughs.population?.day ?? "—")} />
+          </div>}
+        </article>
+
+        <article className="panel wide">
           <div className="section-heading"><div><span className="label">SETTLEMENTS</span><h2>Villages</h2></div><span className="muted">{state.villages.length} settlements</span></div>
           <div className="village-grid">
             {state.villages.map(village => <button className={"village-card " + (village.id === selectedVillageId ? "selected" : "")} key={village.id} onClick={() => setSelectedVillageId(village.id)}>
@@ -259,6 +298,11 @@ function App() {
       </section>
     </main>
   );
+}
+
+function formatSigned(value: number, digits = 0) {
+  const formatted = value.toFixed(digits);
+  return value > 0 ? "+" + formatted : formatted;
 }
 
 function Metric({ label, value }: { label: string; value: string | number }) { return <div className="metric panel"><span className="label">{label}</span><strong>{value}</strong></div>; }
