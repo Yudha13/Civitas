@@ -256,7 +256,8 @@ class Simulation:
     def _ideology_diversity(living: list[Agent]) -> float:
         if not living:
             return 0.0
-        return len({agent.ideology for agent in living}) / len(Ideology)
+        unique = len({agent.ideology for agent in living})
+        return (unique - 1) / (len(Ideology) - 1)
 
     @staticmethod
     def _dominant_ideology_share(living: list[Agent]) -> float:
