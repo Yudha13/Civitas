@@ -48,6 +48,8 @@ class AgentRecord(Base):
     alive: Mapped[bool] = mapped_column(Boolean, nullable=False); fertility: Mapped[float] = mapped_column(Float, nullable=False); faction_id: Mapped[int | None] = mapped_column(Integer)
     disease_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     immune: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    ideology: Mapped[str] = mapped_column(String(32), nullable=False, default="traditional")
+    ideology_commitment: Mapped[float] = mapped_column(Float, nullable=False, default=0.25)
     simulation: Mapped[SimulationRecord] = relationship(back_populates="agents")
 class FactionRecord(Base):
     __tablename__ = "factions"; __table_args__ = (UniqueConstraint("simulation_id","faction_id",name="uq_faction_simulation_id"),)
@@ -80,6 +82,9 @@ class MetricRecord(Base):
     epidemics: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     epidemic_infections: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     epidemic_deaths: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    ideology_diversity: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    dominant_ideology_share: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    ideology_shifts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     simulation: Mapped[SimulationRecord] = relationship(back_populates="metrics")
 class EventRecord(Base):
     __tablename__ = "events"; __table_args__ = (Index("ix_events_simulation_day","simulation_id","day"),)
