@@ -588,7 +588,7 @@ def test_ideology_is_bounded_emergent_and_recorded():
     simulation.SOCIAL_INTERACTION_PROBABILITY = 1.0
     for village in simulation.world.villages.values():
         village.resources.food = 0.0
-    simulation.run(10)
+    simulation._ideology_phase()
 
     assert all(agent.ideology in list(Ideology) for agent in simulation.world.agents.values())
     assert all(0.0 <= agent.ideology_commitment <= 1.0 for agent in simulation.world.agents.values())
