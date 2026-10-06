@@ -4,8 +4,8 @@
 - [x] Repository created
 - [x] Architecture defined
 - [x] Simulation model defined
-- [ ] Initial project structure
-- [ ] Development tooling
+- [x] Initial project structure
+- [x] Development tooling
 
 ## Phase 1 — Simulation Core
 - [x] World
@@ -61,7 +61,9 @@
 - [x] User-owned simulations
 - [x] Simulation metadata
 - [x] Historical metrics
-- [x] Simulation load/resume\n- [x] RNG state persistence for deterministic continuation\n- [x] Replay/load API
+- [x] Simulation load/resume
+- [x] RNG state persistence for deterministic continuation
+- [x] Replay/load API
 
 ## Phase 6 — Advanced Systems
 
@@ -93,3 +95,20 @@ Phase 6 begins with measurement-first social stratification. Inequality metrics 
 ## Long-Term
 
 CIVITAS should remain a sandbox rather than becoming a scripted strategy game. Emergent behavior is the primary feature.
+
+## Closed Beta
+
+- [x] Stages 1–10 implementation complete
+- [x] Full regression verified in GitHub Actions
+- [x] Frontend production build verified
+- [x] Closed Beta scope and validation policy documented
+
+## Production Preparation
+
+- [ ] Deployment architecture
+- [ ] Production secrets and configuration hardening
+- [ ] Observability and operational metrics
+- [ ] Database backup and recovery procedure
+- [ ] Load and performance testing
+- [ ] Security review
+- [ ] Production release checklist
