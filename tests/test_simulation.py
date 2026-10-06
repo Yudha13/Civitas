@@ -581,3 +581,52 @@ def test_epidemics_are_seeded_and_reproducible():
     assert first.world.events == second.world.events
     assert first.metrics_history == second.metrics_history
     assert all(agent.disease_days >= 0 for agent in first.world.agents.values())
+
+
+def test_ideology_is_bounded_emergent_and_recorded():
+    simulation = Simulation(seed=909, population=30)
+    simulation.SOCIAL_INTERACTION_PROBABILITY = 1.0
+    simulation.run(30)
+
+    assert all(agent.ideology in list(Ideology) for agent in simulation.world.agents.values())
+    assert all(0.0 <= agent.ideology_commitment <= 1.0 for agent in simulation.world.agents.values())
+    assert 0.0 <= simulation.metrics().ideology_diversity <= 1.0
+    assert 0.0 <= simulation.metrics().dominant_ideology_share <= 1.0
+    assert simulation.metrics().ideology_shifts >= 0
+    assert all(event.type == EventType.IDEOLOGY_SHIFTED for event in simulation.world.events if event.type == EventType.IDEOLOGY_SHIFTED)
+    simulation.world.validate()
+
+
+def test_ideology_is_seeded_and_reproducible():
+    first = Simulation(seed=910, population=30)
+    second = Simulation(seed=910, population=30)
+    first.SOCIAL_INTERACTION_PROBABILITY = 0.8
+    second.SOCIAL_INTERACTION_PROBABILITY = 0.8
+    first.run(60)
+    second.run(60)
+    assert first.world.agents == second.world.agents
+    assert first.world.events == second.world.events
+    assert first.metrics_history == second.metrics_history
+
+
+def test_ideology_changes_war_hostility_with_cross_faction_difference():
+    simulation = Simulation(seed=911, population=12)
+    simulation.SOCIAL_INTERACTION_PROBABILITY = 0.0
+    first_ids = sorted(simulation.world.villages[1].agents)
+    second_ids = sorted(simulation.world.villages[2].agents)
+    first = Faction(1, "Faction 1", first_ids[0], first_ids[:4], cohesion=70.0)
+    second = Faction(2, "Faction 2", second_ids[0], second_ids[:4], cohesion=70.0)
+    simulation.world.factions[1] = first
+    simulation.world.factions[2] = second
+    for agent_id in first.members:
+        simulation.world.agents[agent_id].faction_id = 1
+    for agent_id in second.members:
+        simulation.world.agents[agent_id].faction_id = 2
+    for agent in simulation.world.agents.values():
+        agent.ideology = Ideology.COMMUNAL
+    calm = simulation._faction_war_hostility(first, second)
+    for agent_id in second.members:
+        simulation.world.agents[agent_id].ideology = Ideology.EXPANSIONIST
+    hostile = simulation._faction_war_hostility(first, second)
+    assert hostile > calm
+    assert 0.0 <= hostile <= 1.0
