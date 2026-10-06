@@ -324,22 +324,29 @@ class Simulation:
             second = self.world.agents[relationship.agent_b]
             if not first.alive or not second.alive or relationship.interactions <= 0:
                 continue
-            affinity = 1.0 if first.ideology == second.ideology else -0.5
-            effect = max(-self.IDEOLOGY_MAX_TRUST_EFFECT, min(self.IDEOLOGY_MAX_TRUST_EFFECT, affinity * 0.05 * min(first.ideology_commitment, second.ideology_commitment)))
-            relationship.trust = max(0.0, min(100.0, relationship.trust + effect))
+            if first.ideology != second.ideology:
+                effect = max(
+                    -self.IDEOLOGY_MAX_TRUST_EFFECT,
+                    -0.025 * min(first.ideology_commitment, second.ideology_commitment),
+                )
+                relationship.trust = max(0.0, min(100.0, relationship.trust + effect))
 
         for faction in self.world.factions.values():
             members = [self.world.agents[mid] for mid in faction.members if self.world.agents[mid].alive]
             if not members:
                 continue
-            cohesion_bonus = sum(
-                (agent.ideology == self.world.agents[faction.leader_id].ideology) * min(agent.ideology_commitment, 1.0)
-                for agent in members
+            leader = self.world.agents[faction.leader_id]
+            ideological_mismatch = sum(
+                agent.ideology != leader.ideology for agent in members
             ) / len(members)
-            faction.cohesion = max(
-                0.0,
-                min(100.0, faction.cohesion + (cohesion_bonus - 0.5) * self.IDEOLOGY_MAX_COHESION_EFFECT),
-            )
+            if ideological_mismatch:
+                faction.cohesion = max(
+                    0.0,
+                    min(
+                        100.0,
+                        faction.cohesion - ideological_mismatch * self.IDEOLOGY_MAX_COHESION_EFFECT,
+                    ),
+                )
 
     def _is_working_age(self, agent: Agent) -> bool:
         return agent.age >= self.WORKING_AGE
