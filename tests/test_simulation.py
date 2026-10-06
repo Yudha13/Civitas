@@ -1,5 +1,5 @@
 from simulation.engine import Simulation
-from simulation.models import EventType, Faction, Occupation, Relationship
+from simulation.models import EventType, Faction, Ideology, Occupation, Relationship
 
 
 def test_initial_population_is_distributed_across_three_villages():
