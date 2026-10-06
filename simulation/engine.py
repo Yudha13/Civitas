@@ -35,6 +35,9 @@ class Metrics:
     environmental_disasters: int
     wars: int
     war_casualties: int
+    epidemics: int
+    epidemic_infections: int
+    epidemic_deaths: int
 
 
 class Simulation:
@@ -75,6 +78,11 @@ class Simulation:
     WAR_RESOURCE_LOSS_MAX = 0.15
     WAR_CASUALTY_RATE_MIN = 0.05
     WAR_CASUALTY_RATE_MAX = 0.20
+    EPIDEMIC_INTRODUCTION_PROBABILITY = 0.01
+    EPIDEMIC_TRANSMISSION_PROBABILITY = 0.20
+    EPIDEMIC_DURATION_DAYS = 10
+    EPIDEMIC_HEALTH_DAMAGE = 3.0
+    EPIDEMIC_MORTALITY_THRESHOLD = 25.0
     VALIDATION_INTERVAL = 30
 
     def __init__(self, seed: int = 1, population: int = 100) -> None:
@@ -93,6 +101,9 @@ class Simulation:
         self._daily_environmental_disasters = 0
         self._daily_wars = 0
         self._daily_war_casualties = 0
+        self._daily_epidemics = 0
+        self._daily_epidemic_infections = 0
+        self._daily_epidemic_deaths = 0
         self.world.validate()
         self.metrics_history: list[Metrics] = [self.metrics()]
 
@@ -140,6 +151,7 @@ class Simulation:
         self._faction_phase()
         self._faction_dynamics_phase()
         self._war_phase()
+        self._epidemic_phase()
         self._migration_phase()
 
         self._emit(
@@ -192,6 +204,9 @@ class Simulation:
             environmental_disasters=self._daily_environmental_disasters,
             wars=self._daily_wars,
             war_casualties=self._daily_war_casualties,
+            epidemics=self._daily_epidemics,
+            epidemic_infections=self._daily_epidemic_infections,
+            epidemic_deaths=self._daily_epidemic_deaths,
         )
 
     @staticmethod
@@ -376,6 +391,54 @@ class Simulation:
             f"Faction {winner.id} defeated Faction {loser.id}: {casualties} casualties, resources -{resource_loss * 100:.1f}%",
             amount=float(casualties),
         )
+    def _epidemic_phase(self) -> None:
+        """Spread a bounded local disease through social contacts and recover survivors."""
+        living = [agent for agent in self.world.agents.values() if agent.alive]
+        infected = [agent for agent in living if agent.disease_days > 0]
+
+        if not infected:
+            candidates = [agent for agent in living if not agent.immune and len(self.world.villages[agent.village_id].agents) >= 3]
+            if candidates and self.rng.random() < self.EPIDEMIC_INTRODUCTION_PROBABILITY:
+                patient_zero = self.rng.choice(candidates)
+                patient_zero.disease_days = self.EPIDEMIC_DURATION_DAYS
+                self._daily_epidemics += 1
+                self._daily_epidemic_infections += 1
+                self._emit(EventType.EPIDEMIC_STARTED, f"Epidemic started with Agent {patient_zero.id} in {self.world.villages[patient_zero.village_id].name}", agent_id=patient_zero.id, village_id=patient_zero.village_id)
+                infected = [patient_zero]
+
+        newly_infected = []
+        for source in infected:
+            if source.disease_days <= 0 or not source.alive:
+                continue
+            contacts = [relationship for relationship in self.world.relationships.values() if source.id in (relationship.agent_a, relationship.agent_b) and relationship.interactions > 0]
+            for relationship in contacts:
+                target_id = relationship.agent_b if relationship.agent_a == source.id else relationship.agent_a
+                target = self.world.agents[target_id]
+                if not target.alive or target.immune or target.disease_days > 0:
+                    continue
+                local_density = min(2.0, len(self.world.villages[target.village_id].agents) / 10.0)
+                probability = min(1.0, self.EPIDEMIC_TRANSMISSION_PROBABILITY * max(0.5, local_density))
+                if self.rng.random() < probability:
+                    target.disease_days = self.EPIDEMIC_DURATION_DAYS
+                    newly_infected.append(target)
+                    self._daily_epidemic_infections += 1
+                    self._emit(EventType.EPIDEMIC_CASE, f"Agent {target.id} contracted the epidemic", agent_id=target.id, village_id=target.village_id)
+
+        for agent in infected + newly_infected:
+            if not agent.alive or agent.disease_days <= 0:
+                continue
+            agent.health = max(0.0, agent.health - self.EPIDEMIC_HEALTH_DAMAGE)
+            agent.disease_days -= 1
+            if agent.health <= 0.0 or (agent.health < self.EPIDEMIC_MORTALITY_THRESHOLD and self.rng.random() < 0.05):
+                agent.alive = False
+                agent.disease_days = 0
+                self._daily_deaths += 1
+                self._daily_epidemic_deaths += 1
+                self._emit(EventType.DEATH, f"Agent {agent.id} died from the epidemic", agent_id=agent.id, village_id=agent.village_id)
+            elif agent.disease_days <= 0:
+                agent.immune = True
+                self._emit(EventType.EPIDEMIC_RECOVERED, f"Agent {agent.id} recovered and gained immunity", agent_id=agent.id, village_id=agent.village_id)
+
     def _production_phase(self) -> None:
         for village in self.world.villages.values():
             self._produce(village)
