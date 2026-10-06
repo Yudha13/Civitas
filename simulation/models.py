@@ -29,6 +29,9 @@ class EventType(str, Enum):
     ENVIRONMENTAL_DISASTER = "environmental_disaster"
     WAR_STARTED = "war_started"
     WAR_RESOLVED = "war_resolved"
+    EPIDEMIC_STARTED = "epidemic_started"
+    EPIDEMIC_CASE = "epidemic_case"
+    EPIDEMIC_RECOVERED = "epidemic_recovered"
 
 
 @dataclass(frozen=True)
@@ -77,6 +80,8 @@ class Agent:
     alive: bool = True
     fertility: float = 1.0
     faction_id: int | None = None
+    disease_days: int = 0
+    immune: bool = False
 
 
 @dataclass
