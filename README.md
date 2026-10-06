@@ -73,4 +73,11 @@ Start small. A stable simulation of 500 agents is more valuable than a grand des
 
 ## Status
 
-Early development — architecture and simulation model are being established.
+**Closed Beta** — Stages 1–10 are implemented and regression-verified. See [`docs/closed-beta.md`](docs/closed-beta.md) for the beta scope, validation policy, and known limitations.
+
+### Verification baseline
+
+- Frontend CI build: passing
+- Backend regression: 64 tests passing
+- Historical analysis: implemented
+- Deterministic seeded simulation: covered by regression tests
