@@ -74,11 +74,11 @@ Phase 6 begins with measurement-first social stratification. Inequality metrics 
 - [x] Environmental disasters: rare bounded resource and health shocks
 - [x] War: bounded faction conflict driven by political pressure, resource scarcity, cohesion, and cross-faction trust
 - [x] Epidemics: bounded emergent transmission, recovery, immunity, mortality, metrics, persistence, and dashboard
-- [ ] Ideologies and belief systems: agent belief state and bounded commitment
-- [ ] Ideology emergence: scarcity, inequality, trust, and local social influence
-- [ ] Ideological affinity: bounded effect on trust, faction cohesion, and conflict
-- [ ] Ideology events, metrics, persistence, API, and dashboard
-- [ ] Seeded ideology regression tests
+- [x] Ideologies and belief systems: agent belief state and bounded commitment
+- [x] Ideology emergence: scarcity, inequality, trust, and local social influence
+- [x] Ideological affinity: bounded effect on trust, faction cohesion, and conflict
+- [x] Ideology events, metrics, persistence, API, and dashboard
+- [x] Seeded ideology regression tests
 
 ## Long-Term
 
