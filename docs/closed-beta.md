@@ -6,9 +6,10 @@ CIVITAS is now entering **Closed Beta** after completion and regression verifica
 
 Verification baseline:
 
-- Previous baseline: GitHub Actions Run #199 (historical result; not a current verification)
-- Current branch validation: pending after the isolation/session hardening changes
-- Frontend build and complete pytest suite must pass on the exact candidate commit before inviting beta testers
+- GitHub Actions Run #218 on candidate commit `0cf0c2ee4d91e31d940d4141e03ac2b2e224e6c5`
+- Backend regression: **65 passed**, 1 dependency deprecation warning
+- Frontend TypeScript/Vite build: **PASS**
+- The candidate remains in a draft PR until reviewed; repeat CI after any further changes before merging
 - Stage 10 historical analysis: implemented and documented
 
 ## Closed Beta Runtime Configuration
