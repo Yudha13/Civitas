@@ -245,6 +245,8 @@ async def simulation_ws(websocket: WebSocket) -> None:
                 if action in {"tick", "run"}:
                     SimulationRepository(db).save_state(simulation_id, sim)
                 await websocket.send_json({"action": action, "state": _world_state(sim), "metrics": sim.metrics().__dict__})
+    except WebSocketDisconnect:
+        return
 
 @app.get("/simulation/events")
 def events(request: Request, limit: int = 100, db: Session = Depends(get_session)) -> list[dict]:
