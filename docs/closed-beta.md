@@ -6,11 +6,23 @@ CIVITAS is now entering **Closed Beta** after completion and regression verifica
 
 Verification baseline:
 
-- GitHub Actions Run #199
-- Frontend build: **PASS**
-- Pytest: **64 passed**
-- Pytest warnings: 1 dependency deprecation warning
+- Previous baseline: GitHub Actions Run #199 (historical result; not a current verification)
+- Current branch validation: pending after the isolation/session hardening changes
+- Frontend build and complete pytest suite must pass on the exact candidate commit before inviting beta testers
 - Stage 10 historical analysis: implemented and documented
+
+## Closed Beta Runtime Configuration
+
+Before starting a shared beta instance, configure:
+
+- `CIVITAS_ENV=beta`
+- `CIVITAS_SESSION_SECRET` as a private random secret of at least 32 characters
+- HTTPS termination and `CIVITAS_COOKIE_SECURE=1` (the secure-cookie default for beta)
+- `DATABASE_URL` pointing to the beta database
+
+The API refuses to start in beta/production mode when the session secret is missing or shorter than 32 characters. Never commit the secret to the repository. Local development keeps a clearly marked development-only fallback.
+
+Each simulation endpoint and WebSocket now requires an active simulation for the authenticated user; there is no global-world fallback. Requests without a user's active simulation return HTTP 404, and the WebSocket closes with code 4404. This is a Closed Beta isolation safeguard, not a claim of multi-process simulation orchestration.
 
 ## Beta Goal
 
