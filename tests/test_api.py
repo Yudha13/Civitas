@@ -232,6 +232,6 @@ def test_user_without_simulation_cannot_read_global_or_other_user_state(monkeypa
         response = fresh_user.get(path)
         assert response.status_code == 404, (path, response.status_code, response.text)
 
-    with pytest.raises(Exception):
-        with fresh_user.websocket_connect("/simulation/ws") as websocket:
-            websocket.send_json({"action": "state"})
+    with fresh_user.websocket_connect("/simulation/ws") as websocket:
+        websocket.send_json({"action": "state"})
+        assert websocket.receive_json()["error"] == "No active simulation"
