@@ -208,3 +208,46 @@ def test_historical_analysis_endpoint_summarizes_metric_window(authenticated_cli
 def test_historical_analysis_limit_is_validated(authenticated_client):
     response = authenticated_client.get("/simulation/analysis?limit=0")
     assert response.status_code == 400
+
+
+def test_simulation_endpoints_do_not_fall_back_to_another_users_world(authenticated_client, monkeypatch):
+    started = authenticated_client.post(
+        "/simulation/start",
+        json={"seed": 123, "population": 17, "name": "Owner World"},
+    )
+    assert started.status_code == 200
+
+    monkeypatch.setattr(
+        app_module,
+        "verify_google_credential",
+        lambda credential: GoogleUser("google-unrelated-456", "other@example.com", "Other User", None),
+    )
+    other = TestClient(app)
+    assert other.post("/auth/google", json={"credential": "other-token"}).status_code == 200
+
+    for path in (
+        "/simulation/state",
+        "/simulation/metrics",
+        "/simulation/metrics/history",
+        "/simulation/analysis",
+        "/simulation/agents",
+        "/simulation/events",
+    ):
+        response = other.get(path)
+        assert response.status_code == 404, f"{path} unexpectedly exposed another user's simulation"
+
+
+def test_session_resumes_owned_simulation_from_persistence(authenticated_client):
+    start = authenticated_client.post(
+        "/simulation/start",
+        json={"seed": 321, "population": 12, "name": "Resume World"},
+    )
+    assert start.status_code == 200
+    assert authenticated_client.post("/simulation/run", json={"days": 3}).status_code == 200
+
+    # Simulate a fresh application process by clearing only the in-memory cache.
+    app_module.active_simulations.clear()
+    resumed = authenticated_client.get("/simulation/state")
+    assert resumed.status_code == 200
+    assert resumed.json()["day"] == 3
+    assert resumed.json()["population"] >= 0
