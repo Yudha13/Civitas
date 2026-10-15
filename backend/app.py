@@ -13,11 +13,24 @@ from backend.analytics import analyze_metrics
 
 app = FastAPI(title="CIVITAS API", version="0.2.0")
 
+_deployment_env = os.getenv("CIVITAS_ENV", "development").strip().lower()
+_session_secret = os.getenv("CIVITAS_SESSION_SECRET", "")
+if _deployment_env in {"beta", "production"} and len(_session_secret) < 32:
+    raise RuntimeError(
+        "CIVITAS_SESSION_SECRET must be configured with at least 32 characters for beta/production"
+    )
+if not _session_secret:
+    # Local development only. Closed Beta and production require an explicit secret.
+    _session_secret = "civitas-local-development-only-secret-change-me"
+
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.getenv("CIVITAS_SESSION_SECRET", "civitas-development-session-secret"),
+    secret_key=_session_secret,
     same_site="lax",
-    https_only=os.getenv("CIVITAS_COOKIE_SECURE", "0") == "1",
+    https_only=os.getenv(
+        "CIVITAS_COOKIE_SECURE",
+        "1" if _deployment_env in {"beta", "production"} else "0",
+    ) == "1",
 )
 
 app.add_middleware(
@@ -41,11 +54,15 @@ class GoogleLoginRequest(BaseModel):
 class SimulationCreateRequest(SimulationConfig):
     name: str = "Untitled Simulation"
 
-simulation = Simulation()
 active_simulations: dict[int, Simulation] = {}
 
-def _world_state(sim: Simulation | None = None) -> dict:
-    sim = sim or simulation
+def _require_active_simulation(user_id: int) -> Simulation:
+    sim = active_simulations.get(user_id)
+    if sim is None:
+        raise HTTPException(status_code=404, detail="No active simulation")
+    return sim
+
+def _world_state(sim: Simulation) -> dict:
     world = sim.world
     return {
         "day": world.day,
@@ -61,8 +78,7 @@ def _world_state(sim: Simulation | None = None) -> dict:
         ],
     }
 
-def _agent_state(agent_id: int, sim: Simulation | None = None) -> dict:
-    sim = sim or simulation
+def _agent_state(agent_id: int, sim: Simulation) -> dict:
     world = sim.world
     agent = world.agents[agent_id]
     village = world.villages[agent.village_id]
@@ -103,20 +119,17 @@ def logout(request: Request) -> dict:
 @app.post("/simulation/start")
 def start(config: SimulationCreateRequest, request: Request, db: Session = Depends(get_session)) -> dict:
     user = require_user(request)
-    global simulation
-    simulation = Simulation(seed=config.seed, population=config.population)
     user_id = int(user["user_id"])
-    active_simulations[user_id] = simulation
-    record = SimulationRepository(db).create_simulation(user_id, simulation, config.name)
+    sim = Simulation(seed=config.seed, population=config.population)
+    record = SimulationRepository(db).create_simulation(user_id, sim, config.name)
+    active_simulations[user_id] = sim
     request.session["simulation_id"] = record.id
-    return _world_state(simulation)
+    return _world_state(sim)
 
 @app.post("/simulation/tick")
 def tick(request: Request, db: Session = Depends(get_session)) -> dict:
     user = require_user(request)
-    sim = active_simulations.get(int(user["user_id"]))
-    if sim is None:
-        raise HTTPException(status_code=404, detail="No active simulation")
+    sim = _require_active_simulation(int(user["user_id"]))
     sim.tick()
     SimulationRepository(db).save_state(request.session["simulation_id"], sim)
     return _world_state(sim)
@@ -124,9 +137,7 @@ def tick(request: Request, db: Session = Depends(get_session)) -> dict:
 @app.post("/simulation/run")
 def run(payload: RunRequest, request: Request, db: Session = Depends(get_session)) -> dict:
     user = require_user(request)
-    sim = active_simulations.get(int(user["user_id"]))
-    if sim is None:
-        raise HTTPException(status_code=404, detail="No active simulation")
+    sim = _require_active_simulation(int(user["user_id"]))
     sim.run(payload.days)
     SimulationRepository(db).save_state(request.session["simulation_id"], sim)
     return _world_state(sim)
@@ -134,18 +145,18 @@ def run(payload: RunRequest, request: Request, db: Session = Depends(get_session
 @app.get("/simulation/state")
 def state(request: Request) -> dict:
     user = require_user(request)
-    return _world_state(active_simulations.get(int(user["user_id"])))
+    return _world_state(_require_active_simulation(int(user["user_id"])))
 
 @app.get("/simulation/metrics")
 def metrics(request: Request) -> dict:
     user = require_user(request)
-    sim = active_simulations.get(int(user["user_id"])) or simulation
+    sim = _require_active_simulation(int(user["user_id"]))
     return sim.metrics().__dict__
 
 @app.get("/simulation/metrics/history")
 def metrics_history(request: Request, limit: int = 365) -> list[dict]:
     user = require_user(request)
-    sim = active_simulations.get(int(user["user_id"])) or simulation
+    sim = _require_active_simulation(int(user["user_id"]))
     if limit < 1 or limit > 5000:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 5000")
     return [snapshot.__dict__ for snapshot in sim.metrics_history[-limit:]]
@@ -153,7 +164,7 @@ def metrics_history(request: Request, limit: int = 365) -> list[dict]:
 @app.get("/simulation/analysis")
 def analysis(request: Request, limit: int = 365) -> dict:
     user = require_user(request)
-    sim = active_simulations.get(int(user["user_id"])) or simulation
+    sim = _require_active_simulation(int(user["user_id"]))
     if limit < 1 or limit > 5000:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 5000")
     return analyze_metrics(sim.metrics_history[-limit:])
@@ -162,7 +173,7 @@ def analysis(request: Request, limit: int = 365) -> dict:
 @app.get("/simulation/agents")
 def agents(request: Request, limit: int = 200) -> list[dict]:
     user = require_user(request)
-    sim = active_simulations.get(int(user["user_id"])) or simulation
+    sim = _require_active_simulation(int(user["user_id"]))
     if limit < 1 or limit > 1000:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 1000")
     agent_ids = sorted(sim.world.agents)[:limit]
@@ -206,7 +217,10 @@ async def simulation_ws(websocket: WebSocket) -> None:
             command = await websocket.receive_json()
             action = command.get("action", "state")
             user_id = int(websocket.session["user"]["user_id"])
-            sim = active_simulations.get(user_id) or simulation
+            sim = active_simulations.get(user_id)
+            if sim is None:
+                await websocket.send_json({"error": "No active simulation"})
+                continue
             if action == "tick":
                 sim.tick()
             elif action == "run":
@@ -230,7 +244,7 @@ async def simulation_ws(websocket: WebSocket) -> None:
 @app.get("/simulation/events")
 def events(request: Request, limit: int = 100) -> list[dict]:
     user = require_user(request)
-    sim = active_simulations.get(int(user["user_id"])) or simulation
+    sim = _require_active_simulation(int(user["user_id"]))
     if limit < 1 or limit > 1000:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 1000")
     return [event.__dict__ for event in sim.world.events[-limit:]]
