@@ -137,9 +137,7 @@ def tick(request: Request, db: Session = Depends(get_session)) -> dict:
 @app.post("/simulation/run")
 def run(payload: RunRequest, request: Request, db: Session = Depends(get_session)) -> dict:
     user = require_user(request)
-    sim = active_simulations.get(int(user["user_id"]))
-    if sim is None:
-        raise HTTPException(status_code=404, detail="No active simulation")
+    sim = _require_active_simulation(int(user["user_id"]))
     sim.run(payload.days)
     SimulationRepository(db).save_state(request.session["simulation_id"], sim)
     return _world_state(sim)
@@ -158,7 +156,7 @@ def metrics(request: Request) -> dict:
 @app.get("/simulation/metrics/history")
 def metrics_history(request: Request, limit: int = 365) -> list[dict]:
     user = require_user(request)
-    sim = active_simulations.get(int(user["user_id"])) or simulation
+    sim = _require_active_simulation(int(user["user_id"]))
     if limit < 1 or limit > 5000:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 5000")
     return [snapshot.__dict__ for snapshot in sim.metrics_history[-limit:]]
@@ -166,7 +164,7 @@ def metrics_history(request: Request, limit: int = 365) -> list[dict]:
 @app.get("/simulation/analysis")
 def analysis(request: Request, limit: int = 365) -> dict:
     user = require_user(request)
-    sim = active_simulations.get(int(user["user_id"])) or simulation
+    sim = _require_active_simulation(int(user["user_id"]))
     if limit < 1 or limit > 5000:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 5000")
     return analyze_metrics(sim.metrics_history[-limit:])
@@ -175,7 +173,7 @@ def analysis(request: Request, limit: int = 365) -> dict:
 @app.get("/simulation/agents")
 def agents(request: Request, limit: int = 200) -> list[dict]:
     user = require_user(request)
-    sim = active_simulations.get(int(user["user_id"])) or simulation
+    sim = _require_active_simulation(int(user["user_id"]))
     if limit < 1 or limit > 1000:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 1000")
     agent_ids = sorted(sim.world.agents)[:limit]
@@ -246,7 +244,7 @@ async def simulation_ws(websocket: WebSocket) -> None:
 @app.get("/simulation/events")
 def events(request: Request, limit: int = 100) -> list[dict]:
     user = require_user(request)
-    sim = active_simulations.get(int(user["user_id"])) or simulation
+    sim = _require_active_simulation(int(user["user_id"]))
     if limit < 1 or limit > 1000:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 1000")
     return [event.__dict__ for event in sim.world.events[-limit:]]
