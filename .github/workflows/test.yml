@@ -8,6 +8,9 @@ on:
 jobs:
   pytest:
     runs-on: ubuntu-latest
+    env:
+      CIVITAS_ENV: test
+      CIVITAS_SESSION_SECRET: civitas-test-session-secret-for-ci-only-32chars
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
