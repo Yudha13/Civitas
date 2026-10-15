@@ -219,8 +219,8 @@ async def simulation_ws(websocket: WebSocket) -> None:
             user_id = int(websocket.session["user"]["user_id"])
             sim = active_simulations.get(user_id)
             if sim is None:
-                await websocket.close(code=4404)
-                return
+                await websocket.send_json({"error": "No active simulation"})
+                continue
             if action == "tick":
                 sim.tick()
             elif action == "run":
