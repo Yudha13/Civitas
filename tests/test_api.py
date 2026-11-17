@@ -118,6 +118,7 @@ def test_websocket_stream_returns_state_and_advances_simulation(authenticated_cl
 
 
 def test_websocket_stream_rejects_invalid_run_days(authenticated_client):
+    authenticated_client.post("/simulation/start", json={"seed": 1, "population": 5})
     with authenticated_client.websocket_connect("/simulation/ws") as websocket:
         websocket.send_json({"action": "run", "days": -1})
         response = websocket.receive_json()
@@ -208,3 +209,59 @@ def test_historical_analysis_endpoint_summarizes_metric_window(authenticated_cli
 def test_historical_analysis_limit_is_validated(authenticated_client):
     response = authenticated_client.get("/simulation/analysis?limit=0")
     assert response.status_code == 400
+
+
+
+def test_user_without_simulation_cannot_read_global_or_other_user_state(monkeypatch):
+    monkeypatch.setattr(
+        app_module,
+        "verify_google_credential",
+        lambda credential: GoogleUser("google-no-sim-789", "nosim@example.com", "No Sim", None),
+    )
+    fresh_user = TestClient(app)
+    assert fresh_user.post("/auth/google", json={"credential": "fresh-token"}).status_code == 200
+
+    for path in (
+        "/simulation/state",
+        "/simulation/metrics",
+        "/simulation/metrics/history",
+        "/simulation/analysis",
+        "/simulation/agents",
+        "/simulation/events",
+    ):
+        response = fresh_user.get(path)
+        assert response.status_code == 404, (path, response.status_code, response.text)
+
+    with fresh_user.websocket_connect("/simulation/ws") as websocket:
+        websocket.send_json({"action": "state"})
+        assert websocket.receive_json()["error"] == "No active simulation"
+
+
+def test_demo_login_is_available_only_when_enabled(monkeypatch):
+    monkeypatch.setenv("CIVITAS_DEMO_MODE", "1")
+    guest = TestClient(app)
+    login = guest.post("/auth/demo")
+    assert login.status_code == 200
+    assert login.json()["demo"] is True
+    assert guest.get("/auth/me").json()["name"] == "CIVITAS Demo"
+    start = guest.post("/simulation/start", json={"seed": 42, "population": 18})
+    assert start.status_code == 200
+    assert guest.post("/simulation/tick").json()["day"] == 1
+
+
+def test_demo_sessions_are_isolated(monkeypatch):
+    monkeypatch.setenv("CIVITAS_DEMO_MODE", "1")
+    first = TestClient(app)
+    second = TestClient(app)
+    assert first.post("/auth/demo").status_code == 200
+    assert second.post("/auth/demo").status_code == 200
+    assert first.get("/auth/me").json()["subject"] != second.get("/auth/me").json()["subject"]
+    first.post("/simulation/start", json={"seed": 42, "population": 11})
+    assert first.get("/simulation/state").status_code == 200
+    assert second.get("/simulation/state").status_code == 404
+
+
+def test_demo_login_is_disabled_by_default(monkeypatch):
+    monkeypatch.delenv("CIVITAS_DEMO_MODE", raising=False)
+    guest = TestClient(app)
+    assert guest.post("/auth/demo").status_code == 404
