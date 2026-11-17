@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Village = { id: number; name: string; agents: number; food: number; wood: number; stone: number };
 type Faction = { id: number; name: string; leader_id: number; members: number[]; cohesion: number };
@@ -6,7 +6,6 @@ type WorldState = { day: number; population: number; villages: Village[]; factio
 type Agent = { id: number; age: number; health: number; hunger: number; wealth: number; trust: number; occupation: string; village_id: number; village_name: string; alive: boolean; fertility: number; faction_id: number | null; faction_name: string | null; ideology: string; ideology_commitment: number };
 type Metrics = { day: number; population: number; living_population: number; average_health: number; average_hunger: number; total_food: number; total_wood: number; total_stone: number; total_wealth: number; average_wealth: number; average_trust: number; trade_volume: number; births: number; deaths: number; migrations: number; social_interactions: number; conflicts: number; faction_count: number; average_faction_cohesion: number; wealth_gini: number; top_10_wealth_share: number; political_pressure: number; environmental_disasters: number; wars: number; war_casualties: number; epidemics: number; epidemic_infections: number; epidemic_deaths: number; ideology_diversity: number; dominant_ideology_share: number; ideology_shifts: number };
 type SimulationEvent = { type: string; day: number; message: string };
-type StreamMessage = { action: string; state: WorldState; metrics: Metrics };
 type ChartPoint = { day: number; value: number };
 type Analysis = {
   start_day: number | null;
@@ -39,7 +38,7 @@ function createDemoWorld(): { state: WorldState; agents: Agent[]; metrics: Metri
     { id: 2, name: "Iron Covenant", leader_id: 2, members: [], cohesion: 61 },
     { id: 3, name: "The Unbound", leader_id: 3, members: [], cohesion: 48 },
   ];
-  const agents: Agent[] = Array.from({ length:  ninety() }, (_, index) => {
+  const agents: Agent[] = Array.from({ length: 90 }, (_, index) => {
     const village = villages[index % villages.length];
     const faction = factions[index % 5 === 0 ? 2 : index % 3];
     const agent: Agent = {
@@ -67,10 +66,6 @@ function createDemoWorld(): { state: WorldState; agents: Agent[]; metrics: Metri
     { type: "FACTION_FORMED", day: 0, message: "Competing visions of order take root among the population." },
   ] };
 }
-function ninety() { return  ninetyValue; }
-const ninetyValue =  ninetyFallback();
-function ninetyFallback() { return  ninetyCount; }
-const ninetyCount = 90;
 function avg(values: number[]) { return values.length ? values.reduce((a,b)=>a+b,0)/values.length : 0; }
 
 function advanceDemo(snapshot: ReturnType<typeof createDemoWorld>, count = 1) {
