@@ -21,7 +21,7 @@ type Analysis = {
   peaks: Record<string, { day: number; value: number }>;
   troughs: Record<string, { day: number; value: number }>;
 };
-type AuthUser = { subject: string; email: string | null; name: string | null; picture: string | null };
+type AuthUser = { subject: string; email: string | null; name: string | null; picture: string | null; demo?: boolean };
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 const WS_BASE = import.meta.env.VITE_WS_URL ?? API_BASE.replace(/^http/, "ws");
