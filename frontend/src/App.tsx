@@ -23,27 +23,117 @@ type Analysis = {
 };
 type AuthUser = { subject: string; email: string | null; name: string | null; picture: string | null; demo?: boolean };
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
-const WS_BASE = import.meta.env.VITE_WS_URL ?? API_BASE.replace(/^http/, "ws");
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
-
-function fetchApi(path: string, init?: RequestInit) {
-  return fetch(API_BASE + path, { ...init, credentials: "include" });
-}
-
-declare global {
-  interface Window {
-    google?: any;
-  }
-}
 
 const emptyState: WorldState = { day: 0, population: 0, villages: [], factions: [] };
 const emptyMetrics: Metrics = { day: 0, population: 0, living_population: 0, average_health: 0, average_hunger: 0, total_food: 0, total_wood: 0, total_stone: 0, total_wealth: 0, average_wealth: 0, average_trust: 0, trade_volume: 0, births: 0, deaths: 0, migrations: 0, social_interactions: 0, conflicts: 0, faction_count: 0, average_faction_cohesion: 0, wealth_gini: 0, top_10_wealth_share: 0, political_pressure: 0, environmental_disasters: 0, wars: 0, war_casualties: 0, epidemics: 0, epidemic_infections: 0, epidemic_deaths: 0, ideology_diversity: 0, dominant_ideology_share: 0, ideology_shifts: 0 };
 
+const DEMO_STORAGE_KEY = "civitas-standalone-demo-v1";
+const DEMO_NAMES = ["Ashen Reach", "Morrowfield", "Blackwater"];
+const DEMO_OCCUPATIONS = ["farmer", "hunter", "builder", "gatherer", "trader", "healer", "guard", "scribe"];
+const DEMO_IDEOLOGIES = ["communalism", "tradition", "liberty", "militarism", "spiritualism"];
+
+function createDemoWorld(): { state: WorldState; agents: Agent[]; metrics: Metrics; history: Metrics[]; events: SimulationEvent[] } {
+  const villages: Village[] = DEMO_NAMES.map((name, index) => ({ id: index + 1, name, agents: 0, food: 450 + index * 90, wood: 320 + index * 60, stone: 180 + index * 45 }));
+  const factions: Faction[] = [
+    { id: 1, name: "The Common Hearth", leader_id: 1, members: [], cohesion: 72 },
+    { id: 2, name: "Iron Covenant", leader_id: 2, members: [], cohesion: 61 },
+    { id: 3, name: "The Unbound", leader_id: 3, members: [], cohesion: 48 },
+  ];
+  const agents: Agent[] = Array.from({ length:  ninety() }, (_, index) => {
+    const village = villages[index % villages.length];
+    const faction = factions[index % 5 === 0 ? 2 : index % 3];
+    const agent: Agent = {
+      id: index + 1, age: 18 + (index * 7 % 52), health: 58 + (index * 13 % 42),
+      hunger: 8 + (index * 11 % 65), wealth: 5 + (index * 17 % 90), trust: 25 + (index * 9 % 70),
+      occupation: DEMO_OCCUPATIONS[index % DEMO_OCCUPATIONS.length], village_id: village.id, village_name: village.name,
+      alive: true, fertility: 0.2 + (index % 7) / 10, faction_id: faction.id, faction_name: faction.name,
+      ideology: DEMO_IDEOLOGIES[index % DEMO_IDEOLOGIES.length], ideology_commitment: 0.25 + (index % 6) / 10,
+    };
+    village.agents += 1; faction.members.push(agent.id);
+    return agent;
+  });
+  const state: WorldState = { day: 0, population: agents.length, villages, factions };
+  const metrics: Metrics = {
+    ...emptyMetrics, population: agents.length, living_population: agents.length,
+    average_health: avg(agents.map(a => a.health)), average_hunger: avg(agents.map(a => a.hunger)),
+    total_food: villages.reduce((n,v) => n+v.food,0), total_wood: villages.reduce((n,v) => n+v.wood,0),
+    total_stone: villages.reduce((n,v) => n+v.stone,0), total_wealth: agents.reduce((n,a) => n+a.wealth,0),
+    average_wealth: avg(agents.map(a => a.wealth)), average_trust: avg(agents.map(a => a.trust)),
+    faction_count: factions.length, average_faction_cohesion: avg(factions.map(f => f.cohesion)),
+    ideology_diversity: 0.78, dominant_ideology_share: 0.28, wealth_gini: 0.31, top_10_wealth_share: 0.29,
+  };
+  return { state, agents, metrics, history: [metrics], events: [
+    { type: "FOUNDING", day: 0, message: "Three settlements emerge from the first gathering." },
+    { type: "FACTION_FORMED", day: 0, message: "Competing visions of order take root among the population." },
+  ] };
+}
+function ninety() { return  ninetyValue; }
+const ninetyValue =  ninetyFallback();
+function ninetyFallback() { return  ninetyCount; }
+const ninetyCount = 90;
+function avg(values: number[]) { return values.length ? values.reduce((a,b)=>a+b,0)/values.length : 0; }
+
+function advanceDemo(snapshot: ReturnType<typeof createDemoWorld>, count = 1) {
+  let { state, agents, metrics, history, events } = snapshot;
+  for (let step = 0; step < count; step++) {
+    const day = state.day + 1;
+    const living = agents.filter(a => a.alive);
+    let births = 0, deaths = 0, conflicts = 0;
+    for (const agent of living) {
+      agent.age += 1 / 365;
+      agent.hunger = Math.max(0, Math.min(100, agent.hunger + 1.8 + (agent.id % 5) * .25));
+      agent.health = Math.max(0, Math.min(100, agent.health + (agent.hunger > 72 ? -2.4 : .25) - (agent.age > 68 ? .35 : 0)));
+      agent.wealth = Math.max(0, agent.wealth + (agent.occupation === "trader" ? 2.2 : .45) - .2);
+      agent.trust = Math.max(0, Math.min(100, agent.trust + (agent.faction_id === 1 ? .12 : -.04)));
+      if (agent.health < 12 && day % 3 === 0) { agent.alive = false; deaths++; }
+      if (agent.hunger < 30 && agent.health > 70 && agent.age > 18 && agent.age < 38 && (agent.id + day) % 97 === 0) births++;
+    }
+    if (births) {
+      for (let i=0;i<births;i++) {
+        const id = agents.length + 1, village = state.villages[id % state.villages.length], faction = state.factions[id % state.factions.length];
+        agents.push({ id, age: 0, health: 100, hunger: 12, wealth: 1, trust: 50, occupation: "gatherer", village_id: village.id, village_name: village.name, alive: true, fertility: .8, faction_id: faction.id, faction_name: faction.name, ideology: DEMO_IDEOLOGIES[id % DEMO_IDEOLOGIES.length], ideology_commitment: .4 });
+        village.agents++; faction.members.push(id);
+      }
+    }
+    const alive = agents.filter(a=>a.alive);
+    state.villages = state.villages.map(v => ({ ...v, agents: alive.filter(a=>a.village_id===v.id).length, food: Math.max(0,v.food + v.agents*.7 - v.agents*1.25), wood: v.wood + v.agents*.18, stone: v.stone + v.agents*.08 }));
+    if (day % 7 === 0) { conflicts = 1; events = [{ type: "SOCIAL_CONFLICT", day, message: "A dispute over shared stores strains relations between settlements." }, ...events].slice(0,30); }
+    if (day % 11 === 0) events = [{ type: "TRADE_CARAVAN", day, message: "A caravan moves tools and food along the settlement corridor." }, ...events].slice(0,30);
+    if (deaths) events = [{ type: "DEATHS", day, message: deaths + " inhabitants died after a period of scarcity." }, ...events].slice(0,30);
+    metrics = {
+      ...metrics, day, population: alive.length + births, living_population: alive.length + births,
+      average_health: avg(alive.map(a=>a.health)), average_hunger: avg(alive.map(a=>a.hunger)),
+      total_food: state.villages.reduce((n,v)=>n+v.food,0), total_wood: state.villages.reduce((n,v)=>n+v.wood,0),
+      total_stone: state.villages.reduce((n,v)=>n+v.stone,0), total_wealth: alive.reduce((n,a)=>n+a.wealth,0),
+      average_wealth: avg(alive.map(a=>a.wealth)), average_trust: avg(alive.map(a=>a.trust)),
+      births: metrics.births + births, deaths: metrics.deaths + deaths, conflicts: metrics.conflicts + conflicts,
+      faction_count: state.factions.length, average_faction_cohesion: avg(state.factions.map(f=>f.cohesion)),
+      trade_volume: metrics.trade_volume + 12 + day % 9, wealth_gini: Math.min(.8, metrics.wealth_gini + .0015),
+      top_10_wealth_share: Math.min(.8, metrics.top_10_wealth_share + .001), political_pressure: Math.min(1, metrics.political_pressure + (day%7===0?.025:.004)),
+      environmental_disasters: metrics.environmental_disasters + (day%29===0?1:0), wars: metrics.wars + (day%37===0?1:0),
+      war_casualties: metrics.war_casualties + (day%37===0?3:0), ideology_shifts: metrics.ideology_shifts + (day%13===0?1:0),
+    };
+    state = { ...state, day, population: alive.length + births };
+    history = [...history, metrics].slice(-365);
+  }
+  const analysis: Analysis = {
+    start_day: history[0]?.day ?? 0, end_day: state.day, days: history.length,
+    population: { start: history[0]?.living_population ?? 0, end: metrics.living_population, change: metrics.living_population-(history[0]?.living_population ?? 0) },
+    wealth: { start: history[0]?.total_wealth ?? 0, end: metrics.total_wealth, change: metrics.total_wealth-(history[0]?.total_wealth ?? 0) },
+    food: { start: history[0]?.total_food ?? 0, end: metrics.total_food, change: metrics.total_food-(history[0]?.total_food ?? 0) },
+    trust: { start: history[0]?.average_trust ?? 0, end: metrics.average_trust, change: metrics.average_trust-(history[0]?.average_trust ?? 0) },
+    wealth_gini: { start: history[0]?.wealth_gini ?? 0, end: metrics.wealth_gini, change: metrics.wealth_gini-(history[0]?.wealth_gini ?? 0) },
+    events: { births: metrics.births, deaths: metrics.deaths, migrations: metrics.migrations, conflicts: metrics.conflicts, disasters: metrics.environmental_disasters, wars: metrics.wars, war_casualties: metrics.war_casualties, epidemics: metrics.epidemics, epidemic_infections: metrics.epidemic_infections, epidemic_deaths: metrics.epidemic_deaths, ideology_shifts: metrics.ideology_shifts },
+    peaks: { population: { day: state.day, value: metrics.living_population } }, troughs: { population: { day: state.day, value: metrics.living_population } },
+  };
+  return { state, agents, metrics, history, events, analysis };
+}
+
+
 function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [authError, setAuthError] = useState("");
+
   const [state, setState] = useState(emptyState);
   const [metrics, setMetrics] = useState(emptyMetrics);
   const [history, setHistory] = useState<Metrics[]>([]);
@@ -54,111 +144,46 @@ function App() {
   const [events, setEvents] = useState<SimulationEvent[]>([]);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [days, setDays] = useState(10);
-  const [connected, setConnected] = useState(false);
-  const socketRef = useRef<WebSocket | null>(null);
 
-  const applyStream = useCallback((message: StreamMessage) => {
-    setState(message.state);
-    setMetrics(message.metrics);
-  }, []);
+  const [demoReady, setDemoReady] = useState(false);
 
-  const loadEvents = useCallback(async () => {
-    const response = await fetchApi("/simulation/events?limit=12");
-    if (response.ok) setEvents(await response.json());
-  }, []);
 
-  const loadAgents = useCallback(async () => {
-    const response = await fetchApi("/simulation/agents?limit=500");
-    if (response.ok) setAgents(await response.json());
-  }, []);
 
-  const loadAnalysis = useCallback(async () => {
-    const response = await fetchApi("/simulation/analysis?limit=365");
-    if (response.ok) setAnalysis(await response.json());
-  }, []);
-
-  const loadHistory = useCallback(async () => {
-    const response = await fetchApi("/simulation/metrics/history?limit=365");
-    if (response.ok) setHistory(await response.json());
-  }, []);
-
-  const refreshWorld = useCallback(() => {
-    void loadEvents();
-    void loadAgents();
-    void loadHistory();
-  }, [loadAgents, loadEvents, loadHistory]);
-
-  const send = useCallback((command: Record<string, unknown>) => {
-    if (socketRef.current?.readyState === WebSocket.OPEN) socketRef.current.send(JSON.stringify(command));
+  useEffect(() => {
+    const saved = localStorage.getItem(DEMO_STORAGE_KEY);
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        setState(data.state ?? emptyState); setAgents(data.agents ?? []); setMetrics(data.metrics ?? emptyMetrics);
+        setHistory(data.history ?? []); setEvents(data.events ?? []); setAnalysis(data.analysis ?? null);
+      } catch { localStorage.removeItem(DEMO_STORAGE_KEY); }
+    }
+    setUser({ subject: "local-demo", email: null, name: "Local Demo", picture: null, demo: true });
+    setDemoReady(true); setAuthChecked(true);
   }, []);
 
   useEffect(() => {
-    if (!user) return;
-    const socket = new WebSocket(WS_BASE + "/simulation/ws");
-    socketRef.current = socket;
-    socket.onopen = () => { setConnected(true); send({ action: "state" }); };
-    socket.onmessage = event => {
-      const message = JSON.parse(event.data) as StreamMessage;
-      if ("state" in message) { applyStream(message); refreshWorld(); }
-    };
-    socket.onclose = () => { setConnected(false); socketRef.current = null; };
-    return () => socket.close();
-  }, [applyStream, refreshWorld, send, user]);
+    if (!demoReady) return;
+    localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify({ state, agents, metrics, history, events, analysis }));
+  }, [analysis, agents, demoReady, events, history, metrics, state]);
 
-  useEffect(() => {
-    void fetchApi("/auth/me").then(async response => {
-      if (response.ok) setUser(await response.json() as AuthUser);
-      setAuthChecked(true);
-    }).catch(() => setAuthChecked(true));
-  }, []);
-
-  useEffect(() => { if (user) refreshWorld(); }, [refreshWorld, user]);
-
-  const start = async () => {
-    const response = await fetchApi("/simulation/start", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ seed: 42, population: 100 }),
-    });
-    if (!response.ok) return;
-    const nextState = await response.json() as WorldState;
-    setState(nextState);
-    setMetrics({ ...emptyMetrics, population: nextState.population, living_population: nextState.population });
-    setHistory([{ ...emptyMetrics, population: nextState.population, living_population: nextState.population }]);
-    setSelectedAgentId(null);
-    setSelectedVillageId(null);
-    setAgentQuery("");
-    send({ action: "state" });
-    refreshWorld();
+  const start = () => {
+    const demo = createDemoWorld();
+    setState(demo.state); setAgents(demo.agents); setMetrics(demo.metrics); setHistory(demo.history);
+    setEvents(demo.events); setAnalysis(null); setSelectedAgentId(null); setSelectedVillageId(null); setAgentQuery("");
   };
 
-  const loginAsDemo = useCallback(async () => {
-    setAuthError("");
-    const response = await fetchApi("/auth/demo", { method: "POST" });
-    if (!response.ok) { setAuthError(response.status === 404 ? "Demo mode belum diaktifkan pada server." : "Tidak dapat membuka sesi demo."); return; }
-    setUser(await response.json() as AuthUser);
-  }, []);
+  const tickDemo = (count = 1) => {
+    if (!state.population) { start(); return; }
+    const next = advanceDemo({ state, agents, metrics, history, events }, Math.min(365, Math.max(1, count)));
+    setState(next.state); setAgents(next.agents); setMetrics(next.metrics); setHistory(next.history);
+    setEvents(next.events); setAnalysis(next.analysis);
+  };
 
-  const loginWithGoogle = useCallback(async (credential: string) => {
-    setAuthError("");
-    const response = await fetchApi("/auth/google", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ credential }) });
-    if (!response.ok) { setAuthError("Google login gagal."); return; }
-    setUser(await response.json() as AuthUser);
-  }, []);
 
-  useEffect(() => {
-    if (!authChecked || user || !GOOGLE_CLIENT_ID) return;
-    const timer = window.setInterval(() => {
-      if (!window.google) return;
-      window.clearInterval(timer);
-      window.google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: (response: { credential: string }) => { void loginWithGoogle(response.credential); }, color_scheme: "dark" });
-      const container = document.getElementById("google-login-button");
-      if (container) window.google.accounts.id.renderButton(container, { theme: "outline", size: "large", width: 280 });
-    }, 100);
-    return () => window.clearInterval(timer);
-  }, [authChecked, loginWithGoogle, user]);
 
   if (!authChecked) return <main className="auth-shell"><section className="panel auth-card"><span className="eyebrow">CIVITAS</span><h1>Loading...</h1></section></main>;
-  if (!user) return <main className="auth-shell"><section className="panel auth-card"><span className="eyebrow">AGENT-BASED CIVILIZATION SIMULATOR</span><h1>CIVITAS</h1><p className="auth-copy">Explore the simulation with a temporary demo session. No Google account required.</p><button className="demo-login-button" onClick={() => void loginAsDemo()}>Enter Demo</button><p className="auth-copy">Demo data is isolated per browser session and intended for testing only.</p>{GOOGLE_CLIENT_ID && <><div className="auth-divider">OR</div><div id="google-login-button" /></>}{authError && <p className="auth-error">{authError}</p>}</section></main>;
+  if (!user) return null;
 
   const filteredAgents = useMemo(() => {
     const query = agentQuery.trim().toLowerCase();
@@ -178,17 +203,17 @@ function App() {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <div><p className="eyebrow">AGENT-BASED CIVILIZATION SIMULATOR</p><h1>CIVITAS</h1>{user.name && <span className="muted">Signed in as {user.name}{user.demo ? " · DEMO SESSION" : ""}</span>}</div>
-        <div className="status"><span className={"status-dot " + (connected ? "online" : "")} />{connected ? "Simulation stream connected" : "Simulation stream offline"}</div>
+        <div><p className="eyebrow">AGENT-BASED CIVILIZATION SIMULATOR</p><h1>CIVITAS</h1>{user.name && <span className="muted">LOCAL DEMO · Data stored in this browser</span>}</div>
+        <div className="status"><span className="status-dot online" />Standalone local simulation</div>
       </header>
 
       <section className="controls panel">
         <div><span className="label">SIMULATION DAY</span><strong>{state.day}</strong></div>
         <div className="control-actions">
           <button onClick={start}>New Simulation</button>
-          <button onClick={() => send({ action: "tick" })}>Tick +1</button>
+          <button onClick={() => tickDemo(1)}>Tick +1</button>
           <input aria-label="Days to run" type="number" min="0" value={days} onChange={e => setDays(Math.max(0, Number(e.target.value) || 0))} />
-          <button onClick={() => send({ action: "run", days })}>Run</button>
+          <button onClick={() => tickDemo(days)}>Run</button>
         </div>
       </section>
 
