@@ -131,6 +131,13 @@ function App() {
     refreshWorld();
   };
 
+  const loginAsDemo = useCallback(async () => {
+    setAuthError("");
+    const response = await fetchApi("/auth/demo", { method: "POST" });
+    if (!response.ok) { setAuthError(response.status === 404 ? "Demo mode belum diaktifkan pada server." : "Tidak dapat membuka sesi demo."); return; }
+    setUser(await response.json() as AuthUser);
+  }, []);
+
   const loginWithGoogle = useCallback(async (credential: string) => {
     setAuthError("");
     const response = await fetchApi("/auth/google", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ credential }) });
@@ -151,7 +158,7 @@ function App() {
   }, [authChecked, loginWithGoogle, user]);
 
   if (!authChecked) return <main className="auth-shell"><section className="panel auth-card"><span className="eyebrow">CIVITAS</span><h1>Loading...</h1></section></main>;
-  if (!user) return <main className="auth-shell"><section className="panel auth-card"><span className="eyebrow">AGENT-BASED CIVILIZATION SIMULATOR</span><h1>CIVITAS</h1><p className="auth-copy">Sign in with Google to create and manage your civilization simulations.</p>{GOOGLE_CLIENT_ID ? <div id="google-login-button" /> : <p className="auth-warning">Google login is not configured. Set VITE_GOOGLE_CLIENT_ID for the frontend.</p>}{authError && <p className="auth-error">{authError}</p>}</section></main>;
+  if (!user) return <main className="auth-shell"><section className="panel auth-card"><span className="eyebrow">AGENT-BASED CIVILIZATION SIMULATOR</span><h1>CIVITAS</h1><p className="auth-copy">Explore the simulation with a temporary demo session. No Google account required.</p><button className="demo-login-button" onClick={() => void loginAsDemo()}>Enter Demo</button><p className="auth-copy">Demo data is isolated per browser session and intended for testing only.</p>{GOOGLE_CLIENT_ID && <><div className="auth-divider">OR</div><div id="google-login-button" /></>}{authError && <p className="auth-error">{authError}</p>}</section></main>;
 
   const filteredAgents = useMemo(() => {
     const query = agentQuery.trim().toLowerCase();
@@ -171,7 +178,7 @@ function App() {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <div><p className="eyebrow">AGENT-BASED CIVILIZATION SIMULATOR</p><h1>CIVITAS</h1>{user.name && <span className="muted">Signed in as {user.name}</span>}</div>
+        <div><p className="eyebrow">AGENT-BASED CIVILIZATION SIMULATOR</p><h1>CIVITAS</h1>{user.name && <span className="muted">Signed in as {user.name}{user.demo ? " · DEMO SESSION" : ""}</span>}</div>
         <div className="status"><span className={"status-dot " + (connected ? "online" : "")} />{connected ? "Simulation stream connected" : "Simulation stream offline"}</div>
       </header>
 
