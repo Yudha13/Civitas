@@ -177,9 +177,6 @@ function App() {
 
 
 
-  if (!authChecked) return <main className="auth-shell"><section className="panel auth-card"><span className="eyebrow">CIVITAS</span><h1>Loading...</h1></section></main>;
-  if (!user) return null;
-
   const filteredAgents = useMemo(() => {
     const query = agentQuery.trim().toLowerCase();
     const visibleAgents = selectedVillageId === null ? agents : agents.filter(agent => agent.village_id === selectedVillageId);
@@ -194,6 +191,9 @@ function App() {
     wood: state.villages.reduce((sum, v) => sum + v.wood, 0),
     stone: state.villages.reduce((sum, v) => sum + v.stone, 0),
   }), [state.villages]);
+
+  if (!authChecked) return <main className="auth-shell"><section className="panel auth-card"><span className="eyebrow">CIVITAS</span><h1>Loading...</h1></section></main>;
+  if (!user) return null;
 
   return (
     <main className="app-shell">
