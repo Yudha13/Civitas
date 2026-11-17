@@ -44,3 +44,10 @@ Do not put backend secrets, database credentials, or `CIVITAS_SESSION_SECRET` in
 A successful Netlify deploy confirms that the frontend compiles and static assets are published.
 It does not confirm that login, REST requests, WebSocket updates, or simulation persistence work.
 Those require the separately deployed backend and database, followed by end-to-end testing.
+
+
+## Optional public demo access
+
+To let visitors test CIVITAS without Google sign-in, set `CIVITAS_DEMO_MODE=1` on the FastAPI backend. The frontend displays an **Enter Demo** action and requests a short-lived guest session. Each browser receives a distinct demo identity, so simulations are isolated between visitors. Demo simulations are test data, not private accounts; disable the feature by removing the variable or setting it to `0` before production.
+
+Also set `CIVITAS_CORS_ORIGINS` on the backend to a comma-separated list of exact frontend origins, including the Netlify site URL (for example `https://your-site.netlify.app`). Keep `CIVITAS_SESSION_SECRET` configured with at least 32 random characters and `CIVITAS_COOKIE_SECURE=1` for HTTPS deployments. Do not place backend secrets in Netlify `VITE_*` variables.
