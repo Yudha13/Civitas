@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel, Field
 import os
+from uuid import uuid4
 from simulation.engine import Simulation
 from backend.database import SessionLocal, get_session
 from backend.repository import SimulationRepository
@@ -35,7 +36,7 @@ app.add_middleware(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[origin.strip() for origin in os.getenv("CIVITAS_CORS_ORIGINS", "http://localhost:5173").split(",") if origin.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -105,6 +106,29 @@ def google_login(payload: GoogleLoginRequest, request: Request, db: Session = De
         "user_id": record.id,
     }
     return request.session["user"]
+
+@app.post("/auth/demo")
+def demo_login(request: Request, db: Session = Depends(get_session)) -> dict:
+    """Create an isolated, disposable guest identity for public feature testing."""
+    if os.getenv("CIVITAS_DEMO_MODE", "0").strip().lower() not in {"1", "true", "yes"}:
+        raise HTTPException(status_code=404, detail="Demo access is disabled")
+    existing = request.session.get("user")
+    if existing and str(existing.get("subject", "")).startswith("demo:"):
+        return existing
+    subject = f"demo:{uuid4()}"
+    record = SimulationRepository(db).upsert_user(subject, None, "CIVITAS Demo", None)
+    user = {
+        "subject": subject,
+        "email": None,
+        "name": "CIVITAS Demo",
+        "picture": None,
+        "user_id": record.id,
+        "demo": True,
+    }
+    request.session.clear()
+    request.session["user"] = user
+    return user
+
 
 @app.get("/auth/me")
 def me(request: Request) -> dict:
